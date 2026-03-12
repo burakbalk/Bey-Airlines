@@ -30,7 +30,7 @@ const mockCustomers: Customer[] = [
     status: 'Aktif',
     reservations: [
       { pnr: 'BEY123', route: 'İstanbul → Dubai', date: '15 Mayıs 2025', amount: '12.500 TL', status: 'Onaylandı' },
-      { pnr: 'BEY098', route: 'Ankara → İstanbul', date: '10 Nisan 2025', amount: '1.250 TL', status: 'Tamamlandı' },
+      { pnr: 'BEY098', route: 'Dubai → Ankara', date: '10 Nisan 2025', amount: '3.699 TL', status: 'Tamamlandı' },
     ],
   },
   {
@@ -42,7 +42,7 @@ const mockCustomers: Customer[] = [
     totalFlights: 8,
     status: 'Aktif',
     reservations: [
-      { pnr: 'BEY456', route: 'Ankara → İstanbul', date: '20 Mayıs 2025', amount: '1.250 TL', status: 'Beklemede' },
+      { pnr: 'BEY456', route: 'Ankara → Dubai', date: '20 Mayıs 2025', amount: '3.699 TL', status: 'Beklemede' },
     ],
   },
   {
@@ -54,7 +54,7 @@ const mockCustomers: Customer[] = [
     totalFlights: 15,
     status: 'Aktif',
     reservations: [
-      { pnr: 'BEY789', route: 'İzmir → Ankara', date: '25 Mayıs 2025', amount: '2.100 TL', status: 'Onaylandı' },
+      { pnr: 'BEY789', route: 'Dubai → İzmir', date: '25 Mayıs 2025', amount: '5.400 TL', status: 'Onaylandı' },
     ],
   },
   {
@@ -66,7 +66,7 @@ const mockCustomers: Customer[] = [
     totalFlights: 5,
     status: 'Askıda',
     reservations: [
-      { pnr: 'BEY321', route: 'İstanbul → Londra', date: '28 Mayıs 2025', amount: '8.750 TL', status: 'İptal' },
+      { pnr: 'BEY321', route: 'İstanbul → Dubai', date: '28 Mayıs 2025', amount: '8.750 TL', status: 'İptal' },
     ],
   },
   {
@@ -78,7 +78,7 @@ const mockCustomers: Customer[] = [
     totalFlights: 6,
     status: 'Aktif',
     reservations: [
-      { pnr: 'BEY654', route: 'Antalya → İstanbul', date: '30 Mayıs 2025', amount: '1.850 TL', status: 'Onaylandı' },
+      { pnr: 'BEY654', route: 'Dubai → İstanbul', date: '30 Mayıs 2025', amount: '3.499 TL', status: 'Onaylandı' },
     ],
   },
 ];

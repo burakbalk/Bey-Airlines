@@ -38,7 +38,7 @@ export const messages = [
     email: 'ayse.sahin@email.com',
     phone: '+90 535 456 7890',
     subject: 'Özel Yardım Talebi',
-    message: 'Tekerlekli sandalye kullanıyorum. 22 Ocak tarihli İzmir-İstanbul uçuşum için özel yardım talep ediyorum. PNR: BEY456789',
+    message: 'Tekerlekli sandalye kullanıyorum. 22 Ocak tarihli İzmir-Dubai uçuşum için özel yardım talep ediyorum. PNR: BEY456789',
     date: '2024-01-13T16:45:00',
     status: 'replied' as const,
     category: 'special-assistance'

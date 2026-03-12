@@ -8,6 +8,17 @@ export const CITIES = [
   { code: 'DXB', name: 'Dubai', country: 'BAE' },
 ];
 
+const TURKISH_CITIES = ['İstanbul', 'Ankara', 'İzmir'];
+
+// Sadece uluslararası uçuş: Türkiye şehirleri ↔ Dubai
+export function getAvailableDestinations(fromCity: string) {
+  if (TURKISH_CITIES.includes(fromCity)) {
+    return CITIES.filter(c => c.name === 'Dubai');
+  }
+  // Dubai seçiliyse tüm Türkiye şehirleri
+  return CITIES.filter(c => TURKISH_CITIES.includes(c.name));
+}
+
 const MONTHS_TR = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
 const DAYS_TR = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 
@@ -99,16 +110,19 @@ export function CityDropdown({
   value,
   onChange,
   iconColor = 'text-red-400',
+  cities,
 }: {
   label: string;
   icon: string;
   value: string;
   onChange: (city: string) => void;
   iconColor?: string;
+  cities?: typeof CITIES;
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const selected = CITIES.find((c) => c.name === value);
+  const cityList = cities || CITIES;
+  const selected = cityList.find((c) => c.name === value);
 
   return (
     <div className="relative flex-1">
@@ -133,7 +147,7 @@ export function CityDropdown({
 
       <PortalDropdown open={open} onClose={() => setOpen(false)} triggerRef={triggerRef}>
         <div className="p-1.5">
-          {CITIES.map((city) => (
+          {cityList.map((city) => (
             <button
               key={city.code}
               type="button"
@@ -417,7 +431,7 @@ export function useSearchForm(initialData?: Partial<SearchFormData>) {
   const [flightClass, setFlightClass] = useState<'normal' | 'vip'>('normal');
   const [formData, setFormData] = useState<SearchFormData>({
     from: 'İstanbul',
-    to: 'Ankara',
+    to: 'Dubai',
     departDate: new Date().toISOString().split('T')[0],
     returnDate: '',
     passengers: 1,
@@ -427,6 +441,14 @@ export function useSearchForm(initialData?: Partial<SearchFormData>) {
   const handleSwap = useCallback(() => {
     setFormData((prev) => ({ ...prev, from: prev.to, to: prev.from }));
   }, []);
+
+  // "from" değişince "to"yu otomatik düzelt (iç hat olmasın)
+  useEffect(() => {
+    const available = getAvailableDestinations(formData.from);
+    if (!available.find(c => c.name === formData.to)) {
+      setFormData((prev) => ({ ...prev, to: available[0]?.name || 'Dubai' }));
+    }
+  }, [formData.from]);
 
   useEffect(() => {
     if (formData.departDate && formData.returnDate && formData.returnDate < formData.departDate) {

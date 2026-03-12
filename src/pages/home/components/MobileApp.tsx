@@ -1,9 +1,9 @@
 export default function MobileApp() {
   return (
     <section className="bg-bg-alt py-24 lg:py-32">
-      <div className="max-w-7xl mx-auto px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-          <div className="relative">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
+          <div className="relative hidden lg:block">
             <div className="flex justify-center gap-8">
               <div className="w-64 transform -rotate-3">
                 <div className="bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.1)] p-4">
@@ -32,7 +32,7 @@ export default function MobileApp() {
             <p className="text-primary text-xs font-semibold uppercase tracking-[0.3em] mb-4">
               Mobil Uygulama
             </p>
-            <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-8">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-8">
               Her Yerde Yanınızda
             </h2>
             <div className="space-y-0 mb-10">
@@ -53,7 +53,7 @@ export default function MobileApp() {
                 </div>
               ))}
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative">
                 <button className="flex items-center gap-3 bg-gray-900 text-white px-6 py-3.5 rounded-2xl opacity-75 cursor-not-allowed">
                   <i className="ri-apple-fill text-2xl"></i>

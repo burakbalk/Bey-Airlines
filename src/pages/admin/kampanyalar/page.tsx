@@ -1,32 +1,10 @@
 import { useState } from 'react';
 import AdminLayout from '../../../components/admin/AdminLayout';
 import AdminGuard from '../../../components/admin/AdminGuard';
-import { campaignsDetailed } from '../../../mocks/campaignsDetailed';
-
-interface Campaign {
-  id: number;
-  title: string;
-  description: string;
-  badge: string;
-  type: 'vip' | 'normal';
-  image: string;
-  routes: string[];
-  isActive: boolean;
-}
+import { useAdminCampaigns, Campaign } from '../../../hooks/useCampaigns';
 
 export default function AdminCampaignsPage() {
-  const [campaigns, setCampaigns] = useState<Campaign[]>(
-    campaignsDetailed.map(c => ({
-      id: c.id,
-      title: c.title,
-      description: c.description,
-      badge: c.badge,
-      type: c.type as 'vip' | 'normal',
-      image: c.image,
-      routes: c.routes,
-      isActive: true
-    }))
-  );
+  const { campaigns, loading, create, update, remove } = useAdminCampaigns();
   const [showModal, setShowModal] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -37,7 +15,7 @@ export default function AdminCampaignsPage() {
     title: '',
     description: '',
     badge: '',
-    type: 'normal' as 'vip' | 'normal',
+    type: 'normal' as string,
     image: '',
     routes: ''
   });
@@ -62,47 +40,46 @@ export default function AdminCampaignsPage() {
     setFormData({
       title: campaign.title,
       description: campaign.description,
-      badge: campaign.badge,
-      type: campaign.type,
-      image: campaign.image,
-      routes: campaign.routes.join(', ')
+      badge: campaign.badge || '',
+      type: campaign.type || 'normal',
+      image: campaign.image || '',
+      routes: (campaign.routes || []).join(', ')
     });
     setShowModal(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const routesArray = formData.routes.split(',').map(r => r.trim()).filter(Boolean);
     if (editingCampaign) {
-      setCampaigns(campaigns.map(c =>
-        c.id === editingCampaign.id
-          ? { ...c, title: formData.title, description: formData.description, badge: formData.badge, type: formData.type, image: formData.image, routes: routesArray }
-          : c
-      ));
-    } else {
-      const newCampaign: Campaign = {
-        id: Date.now(),
+      await update(editingCampaign.id, {
         title: formData.title,
         description: formData.description,
         badge: formData.badge,
         type: formData.type,
         image: formData.image,
         routes: routesArray,
-        isActive: true
-      };
-      setCampaigns([...campaigns, newCampaign]);
+      });
+    } else {
+      await create({
+        title: formData.title,
+        description: formData.description,
+        badge: formData.badge,
+        type: formData.type,
+        image: formData.image,
+        routes: routesArray,
+        is_active: true,
+      });
     }
     setShowModal(false);
   };
 
-  const handleDelete = (id: number) => {
-    setCampaigns(campaigns.filter(c => c.id !== id));
+  const handleDelete = async (id: number) => {
+    await remove(id);
     setShowDeleteConfirm(null);
   };
 
-  const toggleActive = (id: number) => {
-    setCampaigns(campaigns.map(c =>
-      c.id === id ? { ...c, isActive: !c.isActive } : c
-    ));
+  const toggleActive = async (id: number, currentState: boolean) => {
+    await update(id, { is_active: !currentState });
   };
 
   const filteredCampaigns = campaigns.filter(c => {
@@ -113,6 +90,18 @@ export default function AdminCampaignsPage() {
                        (typeFilter === 'Normal' && c.type === 'normal');
     return matchesSearch && matchesType;
   });
+
+  if (loading) {
+    return (
+      <AdminGuard>
+        <AdminLayout>
+          <div className="flex items-center justify-center h-96">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600"></div>
+          </div>
+        </AdminLayout>
+      </AdminGuard>
+    );
+  }
 
   return (
     <AdminGuard>
@@ -170,23 +159,23 @@ export default function AdminCampaignsPage() {
               <div key={campaign.id} className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
                 <div className="relative h-48 w-full">
                   <img
-                    src={campaign.image}
+                    src={campaign.image || '/images/campaigns/default.jpg'}
                     alt={campaign.title}
                     className="w-full h-full object-cover"
                   />
                   <div className={`absolute top-4 right-4 px-3 py-1 rounded-full text-sm font-bold text-white ${campaign.type === 'vip' ? 'bg-amber-500' : 'bg-red-600'}`}>
-                    {campaign.badge}
+                    {campaign.badge || campaign.type?.toUpperCase()}
                   </div>
                   <div className="absolute top-4 left-4">
                     <button
-                      onClick={() => toggleActive(campaign.id)}
+                      onClick={() => toggleActive(campaign.id, campaign.is_active)}
                       className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        campaign.isActive
+                        campaign.is_active
                           ? 'bg-green-500 text-white'
                           : 'bg-gray-500 text-white'
                       }`}
                     >
-                      {campaign.isActive ? 'Aktif' : 'Pasif'}
+                      {campaign.is_active ? 'Aktif' : 'Pasif'}
                     </button>
                   </div>
                 </div>
@@ -199,7 +188,7 @@ export default function AdminCampaignsPage() {
                   </div>
                   <p className="text-sm text-gray-600 mb-4 line-clamp-2">{campaign.description}</p>
                   <div className="flex flex-wrap gap-1 mb-4">
-                    {campaign.routes.map((route, idx) => (
+                    {(campaign.routes || []).map((route: string, idx: number) => (
                       <span key={idx} className="text-xs bg-red-50 text-red-700 px-2 py-1 rounded-lg">{route}</span>
                     ))}
                   </div>
@@ -278,7 +267,7 @@ export default function AdminCampaignsPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Tür</label>
                     <select
                       value={formData.type}
-                      onChange={(e) => setFormData({...formData, type: e.target.value as 'vip' | 'normal'})}
+                      onChange={(e) => setFormData({...formData, type: e.target.value})}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm cursor-pointer"
                     >
                       <option value="normal">Normal</option>

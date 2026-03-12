@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
 import { faqData } from '../../mocks/faq';
+import { useSendMessage } from '../../hooks/useMessages';
 
 export default function YardimPage() {
   const [openFaqId, setOpenFaqId] = useState<number | null>(null);
@@ -13,15 +14,36 @@ export default function YardimPage() {
     message: ''
   });
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const { send } = useSendMessage();
 
   const categories = ['Tümü', 'Bagaj Kuralları', 'Check-in', 'İptal ve Değişiklik', 'Ödeme', 'VIP Hizmetler'];
 
-  const filteredFaqs = selectedCategory === 'Tümü' 
-    ? faqData 
+  const filteredFaqs = selectedCategory === 'Tümü'
+    ? faqData
     : faqData.filter(faq => faq.category === selectedCategory);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
+    setSubmitting(true);
+
+    const { error } = await send({
+      sender_name: formData.name,
+      email: formData.email,
+      subject: formData.subject,
+      message: formData.message,
+      category: formData.subject,
+    });
+
+    setSubmitting(false);
+
+    if (error) {
+      setFormError('Mesajınız gönderilemedi. Lütfen tekrar deneyin.');
+      return;
+    }
+
     setFormSubmitted(true);
     setTimeout(() => {
       setFormSubmitted(false);
@@ -297,11 +319,23 @@ export default function YardimPage() {
                     <p className="text-xs text-gray-400 mt-1">{formData.message.length}/500 karakter</p>
                   </div>
 
+                  {formError && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-2">
+                      <i className="ri-error-warning-line text-lg"></i>
+                      <span className="text-sm">{formError}</span>
+                    </div>
+                  )}
+
                   <button
                     type="submit"
-                    className="w-full bg-red-600 text-white py-4 rounded-xl font-bold text-base hover:bg-red-700 transition-all whitespace-nowrap cursor-pointer shadow-lg shadow-red-100"
+                    disabled={submitting}
+                    className="w-full bg-red-600 text-white py-4 rounded-xl font-bold text-base hover:bg-red-700 transition-all whitespace-nowrap cursor-pointer shadow-lg shadow-red-100 disabled:opacity-50"
                   >
-                    <i className="ri-send-plane-line mr-2"></i>Mesaj Gönder
+                    {submitting ? (
+                      <><i className="ri-loader-4-line animate-spin mr-2"></i>Gönderiliyor...</>
+                    ) : (
+                      <><i className="ri-send-plane-line mr-2"></i>Mesaj Gönder</>
+                    )}
                   </button>
                 </form>
               )}

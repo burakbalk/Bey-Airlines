@@ -22,12 +22,12 @@ export default function SearchForm({ onSearch }: SearchFormProps) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-8">
+    <div className="bg-white rounded-lg shadow-lg p-4 sm:p-8">
       <div className="flex gap-4 mb-6">
         <button
           type="button"
           onClick={() => setSearchType('flightNumber')}
-          className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-all whitespace-nowrap cursor-pointer ${
+          className={`flex-1 py-3 px-3 sm:px-6 rounded-lg font-semibold transition-all whitespace-nowrap cursor-pointer ${
             searchType === 'flightNumber'
               ? 'bg-red-600 text-white'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -38,7 +38,7 @@ export default function SearchForm({ onSearch }: SearchFormProps) {
         <button
           type="button"
           onClick={() => setSearchType('route')}
-          className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-all whitespace-nowrap cursor-pointer ${
+          className={`flex-1 py-3 px-3 sm:px-6 rounded-lg font-semibold transition-all whitespace-nowrap cursor-pointer ${
             searchType === 'route'
               ? 'bg-red-600 text-white'
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -58,7 +58,7 @@ export default function SearchForm({ onSearch }: SearchFormProps) {
               type="text"
               value={flightNumber}
               onChange={(e) => setFlightNumber(e.target.value)}
-              placeholder="Örn: BEY101"
+              placeholder="Örn: BEY1101"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm cursor-text"
             />
           </div>

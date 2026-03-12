@@ -24,7 +24,7 @@ const FlightBookingPage = () => {
   
   const flightId = searchParams.get('flightId');
   const from = searchParams.get('from') || 'İstanbul';
-  const to = searchParams.get('to') || 'Ankara';
+  const to = searchParams.get('to') || 'Dubai';
   const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
   const price = searchParams.get('price') || '1,250';
 
@@ -168,47 +168,47 @@ const FlightBookingPage = () => {
         <div className="bg-white border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center font-semibold">
+              <div className="flex items-center space-x-1 sm:space-x-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-red-600 text-white flex items-center justify-center font-semibold">
                   1
                 </div>
-                <div>
+                <div className="hidden sm:block">
                   <div className="text-sm font-semibold text-red-600">Yolcu Bilgileri</div>
                   <div className="text-xs text-gray-500">Yolcu ve iletişim bilgileri</div>
                 </div>
               </div>
-              
-              <div className="flex-1 h-0.5 bg-gray-200 mx-4"></div>
-              
-              <div className="flex items-center space-x-3 opacity-50">
-                <div className="w-10 h-10 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold">
+
+              <div className="flex-1 h-0.5 bg-gray-200 mx-1 sm:mx-4"></div>
+
+              <div className="flex items-center space-x-1 sm:space-x-3 opacity-50">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold">
                   2
                 </div>
-                <div>
+                <div className="hidden sm:block">
                   <div className="text-sm font-semibold text-gray-500">Koltuk Seçimi</div>
                   <div className="text-xs text-gray-400">Koltuk ve ek hizmetler</div>
                 </div>
               </div>
-              
-              <div className="flex-1 h-0.5 bg-gray-200 mx-4"></div>
-              
-              <div className="flex items-center space-x-3 opacity-50">
-                <div className="w-10 h-10 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold">
+
+              <div className="flex-1 h-0.5 bg-gray-200 mx-1 sm:mx-4"></div>
+
+              <div className="flex items-center space-x-1 sm:space-x-3 opacity-50">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold">
                   3
                 </div>
-                <div>
+                <div className="hidden sm:block">
                   <div className="text-sm font-semibold text-gray-500">Ek Hizmetler</div>
                   <div className="text-xs text-gray-400">Bagaj, yemek, sigorta</div>
                 </div>
               </div>
-              
-              <div className="flex-1 h-0.5 bg-gray-200 mx-4"></div>
-              
-              <div className="flex items-center space-x-3 opacity-50">
-                <div className="w-10 h-10 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold">
+
+              <div className="flex-1 h-0.5 bg-gray-200 mx-1 sm:mx-4"></div>
+
+              <div className="flex items-center space-x-1 sm:space-x-3 opacity-50">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold">
                   4
                 </div>
-                <div>
+                <div className="hidden sm:block">
                   <div className="text-sm font-semibold text-gray-500">Ödeme</div>
                   <div className="text-xs text-gray-400">Ödeme ve onay</div>
                 </div>
@@ -222,7 +222,7 @@ const FlightBookingPage = () => {
             {/* Sol Taraf - Form */}
             <div className="lg:col-span-2 space-y-6">
               {/* Yolcu Sayısı Seçimi */}
-              <div className="bg-white rounded-2xl shadow-lg p-6">
+              <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-6">Yolcu Sayısı</h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -311,7 +311,7 @@ const FlightBookingPage = () => {
 
               {/* Yolcu Bilgileri */}
               {passengers.map((passenger, index) => (
-                <div key={passenger.id} className="bg-white rounded-2xl shadow-lg p-6">
+                <div key={passenger.id} className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-lg font-bold text-gray-900">
                       {index + 1}. Yolcu - {getPassengerTypeLabel(passenger.type)}
@@ -435,7 +435,7 @@ const FlightBookingPage = () => {
               ))}
 
               {/* İletişim Bilgileri */}
-              <div className="bg-white rounded-2xl shadow-lg p-6">
+              <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
                 <h3 className="text-lg font-bold text-gray-900 mb-6">İletişim Bilgileri</h3>
                 
                 <div className="space-y-4">
@@ -472,7 +472,7 @@ const FlightBookingPage = () => {
 
             {/* Sağ Taraf - Özet */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-24">
+              <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 sticky top-24">
                 <h3 className="text-lg font-bold text-gray-900 mb-6">Uçuş Özeti</h3>
                 
                 <div className="space-y-4 mb-6">

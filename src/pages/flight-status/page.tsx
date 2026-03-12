@@ -3,11 +3,13 @@ import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
 import SearchForm from './components/SearchForm';
 import StatusCard from './components/StatusCard';
-import { flightStatusData } from '../../mocks/flightStatus';
+import { useFlightStatus, toStatusCardFormat } from '../../hooks/useFlights';
 
 export default function FlightStatusPage() {
-  const [searchResults, setSearchResults] = useState<typeof flightStatusData>([]);
+  const { flights, loading, search } = useFlightStatus();
   const [hasSearched, setHasSearched] = useState(false);
+
+  const searchResults = flights.map(toStatusCardFormat);
 
   const handleSearch = (
     searchType: 'flightNumber' | 'route',
@@ -16,15 +18,7 @@ export default function FlightStatusPage() {
     to?: string
   ) => {
     setHasSearched(true);
-    if (searchType === 'flightNumber') {
-      setSearchResults(flightStatusData.filter(
-        (f) => f.flightNumber.toLowerCase() === value.toLowerCase()
-      ));
-    } else if (searchType === 'route' && from && to) {
-      setSearchResults(flightStatusData.filter(
-        (f) => f.from === from && f.to === to
-      ));
-    }
+    search(searchType, value, from, to);
   };
 
   return (
@@ -34,13 +28,13 @@ export default function FlightStatusPage() {
       {/* Hero */}
       <div className="relative bg-gradient-to-br from-red-600 via-red-500 to-red-700 pt-16 pb-16">
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/20"></div>
-        <div className="relative z-10 max-w-4xl mx-auto px-8 text-center">
+        <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-8 text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-full mb-6">
             <i className="ri-flight-takeoff-line text-3xl text-white"></i>
           </div>
-          <h1 className="text-5xl font-bold text-white mb-4">Uçuş Durumu</h1>
+          <h1 className="text-3xl sm:text-5xl font-bold text-white mb-4">Uçuş Durumu</h1>
           <p className="text-xl text-red-100">Anlık uçuş bilgisi ve kapı durumunu öğrenin</p>
-          <div className="flex items-center justify-center gap-8 mt-8">
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-8 mt-8">
             {['Anlık Güncelleme', 'Kapı Bilgisi', 'Tahmini Saatler'].map((item, i) => (
               <div key={i} className="flex items-center gap-2 text-white/90 text-sm">
                 <i className="ri-check-line text-red-200"></i>
@@ -52,13 +46,20 @@ export default function FlightStatusPage() {
       </div>
 
       <main className="flex-1 pb-16">
-        <div className="max-w-4xl mx-auto px-8 -mt-10 relative z-10">
+        <div className="max-w-4xl mx-auto px-4 sm:px-8 -mt-10 relative z-10">
           <SearchForm onSearch={handleSearch} />
         </div>
 
-        <div className="max-w-4xl mx-auto px-8 mt-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-8 mt-8">
           {hasSearched ? (
-            searchResults.length > 0 ? (
+            loading ? (
+              <div className="bg-white rounded-2xl shadow-md p-12 text-center border border-gray-100">
+                <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+                  <i className="ri-flight-takeoff-line text-4xl text-red-400"></i>
+                </div>
+                <p className="text-gray-500 text-lg">Uçuş durumu sorgulanıyor...</p>
+              </div>
+            ) : searchResults.length > 0 ? (
               <div className="space-y-6">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="w-1 h-8 bg-red-600 rounded-full"></div>

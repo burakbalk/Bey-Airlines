@@ -1,14 +1,15 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
 import FilterPanel from './components/FilterPanel';
 import FlightCard from './components/FlightCard';
-import { flightResults } from '../../mocks/flights';
+import { useFlightsByDate, toFlightCardFormat } from '../../hooks/useFlights';
 import {
   CityDropdown,
   DatePicker,
   PassengerSelector,
   useSearchForm,
+  getAvailableDestinations,
 } from '../../components/feature/SearchForm';
 
 export default function FlightSearchPage() {
@@ -16,7 +17,18 @@ export default function FlightSearchPage() {
   const [sortBy, setSortBy] = useState('price');
   const { tripType, setTripType, flightClass, setFlightClass, formData, setFormData, handleSwap } = useSearchForm();
 
-  const filtered = flightResults
+  const { flights: rawFlights, loading } = useFlightsByDate(
+    formData.departDate || new Date().toISOString().split('T')[0],
+    formData.from || undefined,
+    formData.to || undefined
+  );
+
+  const availableFlights = useMemo(
+    () => rawFlights.map(toFlightCardFormat),
+    [rawFlights]
+  );
+
+  const filtered = availableFlights
     .filter((f) => {
       if (filters.flightClass && filters.flightClass !== 'all' && f.flightClass !== filters.flightClass) return false;
       if (filters.directOnly && f.type !== 'Direkt') return false;
@@ -41,7 +53,7 @@ export default function FlightSearchPage() {
           <div className="absolute inset-0 bg-white/[0.05] backdrop-blur-xl"></div>
           <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
 
-          <div className="relative max-w-7xl mx-auto px-8 py-4">
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-8 py-2 sm:py-4">
             {/* Trip type & class tabs */}
             <div className="flex flex-wrap items-center justify-between mb-3">
               <div className="flex items-center gap-1">
@@ -106,6 +118,7 @@ export default function FlightSearchPage() {
                     icon="ri-flight-land-line"
                     value={formData.to}
                     onChange={(v) => setFormData({ ...formData, to: v })}
+                    cities={getAvailableDestinations(formData.from)}
                   />
                 </div>
               </div>
@@ -139,7 +152,7 @@ export default function FlightSearchPage() {
 
               <button
                 onClick={() => setFilters({ ...filters })}
-                className="px-8 py-3 bg-gradient-to-r from-primary to-secondary hover:from-primary-dark hover:to-primary text-white font-bold rounded-2xl transition-all text-sm cursor-pointer flex items-center justify-center gap-2 shadow-lg hover:shadow-xl active:scale-[0.98] whitespace-nowrap"
+                className="px-4 sm:px-8 py-3 bg-gradient-to-r from-primary to-secondary hover:from-primary-dark hover:to-primary text-white font-bold rounded-2xl transition-all text-sm cursor-pointer flex items-center justify-center gap-2 shadow-lg hover:shadow-xl active:scale-[0.98] whitespace-nowrap"
               >
                 <i className="ri-search-line text-lg"></i>
                 Uçuş Ara
@@ -149,13 +162,13 @@ export default function FlightSearchPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-8 mt-8 pb-16">
-        <div className="grid grid-cols-12 gap-8">
-          <div className="col-span-3">
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 mt-8 pb-16">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8">
+          <div className="hidden lg:block lg:col-span-3">
             <FilterPanel onFilterChange={setFilters} />
           </div>
 
-          <div className="col-span-9">
+          <div className="lg:col-span-9">
             <div className="flex justify-between items-center mb-6">
               <div>
                 <p className="text-gray-600 text-sm">
@@ -182,7 +195,14 @@ export default function FlightSearchPage() {
             </div>
 
             <div className="space-y-4">
-              {filtered.length === 0 ? (
+              {loading ? (
+                <div className="bg-white rounded-2xl p-12 text-center shadow-md border border-gray-100">
+                  <div className="w-16 h-16 flex items-center justify-center mx-auto mb-4 bg-red-50 rounded-full animate-pulse">
+                    <i className="ri-plane-line text-3xl text-primary"></i>
+                  </div>
+                  <p className="text-gray-500 text-lg">Uçuşlar yükleniyor...</p>
+                </div>
+              ) : filtered.length === 0 ? (
                 <div className="bg-white rounded-2xl p-12 text-center shadow-md border border-gray-100">
                   <div className="w-16 h-16 flex items-center justify-center mx-auto mb-4 bg-red-50 rounded-full">
                     <i className="ri-plane-line text-3xl text-primary"></i>

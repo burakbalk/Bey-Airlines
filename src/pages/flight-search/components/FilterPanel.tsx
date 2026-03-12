@@ -32,7 +32,7 @@ export default function FilterPanel({ onFilterChange }: FilterPanelProps) {
   };
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 sticky top-24">
+    <div className="bg-white rounded-2xl p-3 sm:p-6 shadow-md border border-gray-100 sticky top-24">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-bold text-gray-900">Filtreler</h3>
         <button onClick={clearFilters} className="text-primary text-xs font-medium hover:underline whitespace-nowrap cursor-pointer">

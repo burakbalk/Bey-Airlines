@@ -1,12 +1,30 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { popularDestinations } from '../../mocks/destinations';
+import { useDestinationById, useDestinations } from '../../hooks/useDestinations';
 import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
 
 export default function DestinationDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const destination = popularDestinations.find(d => d.id === Number(id));
+  const { destination, loading } = useDestinationById(id);
+  const { destinations } = useDestinations();
+
+  const otherDestinations = destinations.filter(d => d.id !== destination?.id).slice(0, 3);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <i className="ri-loader-4-line text-5xl text-red-600 animate-spin"></i>
+            <p className="mt-4 text-gray-600">Yükleniyor...</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   if (!destination) {
     return (
@@ -23,17 +41,15 @@ export default function DestinationDetailPage() {
     );
   }
 
-  const otherDestinations = popularDestinations.filter(d => d.id !== destination.id).slice(0, 3);
-
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
 
       {/* Hero Section */}
-      <section className="relative h-[500px] overflow-hidden">
+      <section className="relative h-72 sm:h-96 md:h-[500px] overflow-hidden">
         <div className="w-full h-full">
           <img
-            src={destination.heroImage}
+            src={destination.hero_image}
             alt={destination.city}
             className="w-full h-full object-cover object-top"
           />
@@ -41,12 +57,12 @@ export default function DestinationDetailPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/50"></div>
         
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center text-white px-8 max-w-4xl">
-            <div className="w-20 h-20 flex items-center justify-center mx-auto mb-6">
-              <i className="ri-map-pin-line text-6xl"></i>
+          <div className="text-center text-white px-4 sm:px-8 max-w-4xl">
+            <div className="w-14 h-14 sm:w-20 sm:h-20 flex items-center justify-center mx-auto mb-4 sm:mb-6">
+              <i className="ri-map-pin-line text-4xl sm:text-6xl"></i>
             </div>
-            <h1 className="text-5xl font-bold mb-4">{destination.city}</h1>
-            <p className="text-xl mb-6 text-white/90">{destination.country}</p>
+            <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold mb-4">{destination.city}</h1>
+            <p className="text-base sm:text-xl mb-6 text-white/90">{destination.country}</p>
             
             <div className="flex flex-wrap gap-3 justify-center mb-8">
               <span className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap">
@@ -62,7 +78,7 @@ export default function DestinationDetailPage() {
 
             <button
               onClick={() => navigate('/ucus-ara')}
-              className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-xl text-lg font-semibold transition-all duration-300 hover:scale-105 shadow-2xl whitespace-nowrap"
+              className="bg-red-600 hover:bg-red-700 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl text-sm sm:text-lg font-semibold transition-all duration-300 hover:scale-105 shadow-2xl whitespace-nowrap"
             >
               Bu Destinasyona Uç
             </button>
@@ -72,7 +88,7 @@ export default function DestinationDetailPage() {
 
       {/* Description */}
       <section className="py-16 bg-bg-alt">
-        <div className="max-w-7xl mx-auto px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <div className="bg-white rounded-2xl shadow-md p-8">
             <p className="text-lg text-gray-700 leading-relaxed">{destination.description}</p>
           </div>
@@ -81,7 +97,7 @@ export default function DestinationDetailPage() {
 
       {/* Highlights */}
       <section className="py-16">
-        <div className="max-w-7xl mx-auto px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <h2 className="text-3xl font-bold text-gray-900 mb-10">Öne Çıkan Özellikler</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {destination.highlights.map((highlight, index) => (
@@ -102,7 +118,7 @@ export default function DestinationDetailPage() {
 
       {/* Gallery */}
       <section className="py-16 bg-bg-alt">
-        <div className="max-w-7xl mx-auto px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <h2 className="text-3xl font-bold text-gray-900 mb-10">Galeri</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {destination.gallery.map((image, index) => (
@@ -110,7 +126,7 @@ export default function DestinationDetailPage() {
                 key={index}
                 className="rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer"
               >
-                <div className="w-full h-64">
+                <div className="w-full h-40 sm:h-64">
                   <img
                     src={image}
                     alt={`${destination.city} ${index + 1}`}
@@ -125,10 +141,10 @@ export default function DestinationDetailPage() {
 
       {/* Popular Flights */}
       <section className="py-16">
-        <div className="max-w-7xl mx-auto px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <h2 className="text-3xl font-bold text-gray-900 mb-10">Popüler Uçuşlar</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {destination.popularFlights.map((flight, index) => (
+            {destination.popular_flights.map((flight, index) => (
               <div
                 key={index}
                 className="bg-white rounded-2xl shadow-md p-6 hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer"
@@ -182,7 +198,7 @@ export default function DestinationDetailPage() {
 
       {/* Other Destinations */}
       <section className="py-16 bg-bg-alt">
-        <div className="max-w-7xl mx-auto px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <h2 className="text-3xl font-bold text-gray-900 mb-10">Diğer Destinasyonlar</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {otherDestinations.map((dest) => (
@@ -191,7 +207,7 @@ export default function DestinationDetailPage() {
                 to={`/destinasyonlar/${dest.id}`}
                 className="group relative rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-xl"
               >
-                <div className="w-full h-64">
+                <div className="w-full h-40 sm:h-64">
                   <img
                     src={dest.image}
                     alt={dest.city}

@@ -1,9 +1,21 @@
 import { Link } from 'react-router-dom';
-import { campaigns } from '../../../mocks/campaigns';
+import { useCampaigns } from '../../../hooks/useCampaigns';
 
 export default function CampaignsSection() {
-  const featuredCampaign = campaigns.find(c => c.type === 'featured');
-  const otherCampaigns = campaigns.filter(c => c.type !== 'featured');
+  const { campaigns, loading } = useCampaigns();
+
+  if (loading) {
+    return (
+      <section id="kampanyalar" className="bg-white py-24 lg:py-32">
+        <div className="max-w-7xl mx-auto px-8 text-center">
+          <i className="ri-loader-4-line text-4xl text-red-600 animate-spin"></i>
+        </div>
+      </section>
+    );
+  }
+
+  const featuredCampaign = campaigns.find(c => c.type === 'vip');
+  const otherCampaigns = campaigns.filter(c => c.id !== featuredCampaign?.id).slice(0, 2);
 
   return (
     <section id="kampanyalar" className="bg-white py-24 lg:py-32">
@@ -53,7 +65,7 @@ export default function CampaignsSection() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
                 <div className="absolute top-4 left-4">
                   <span className="bg-white/90 text-gray-900 backdrop-blur-sm px-4 py-1 rounded-full text-xs font-semibold whitespace-nowrap">
-                    {campaign.category}
+                    {campaign.badge}
                   </span>
                 </div>
                 <div className="absolute bottom-5 left-5 right-5">

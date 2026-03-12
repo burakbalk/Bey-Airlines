@@ -2,18 +2,34 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
-import { campaignsDetailed } from '../../mocks/campaignsDetailed';
+import { useCampaigns } from '../../hooks/useCampaigns';
 
 export default function CampaignsPage() {
+  const { campaigns, loading } = useCampaigns();
   const [filter, setFilter] = useState<'all' | 'vip' | 'normal'>('all');
 
-  const filteredCampaigns = campaignsDetailed.filter((campaign) => {
+  const filteredCampaigns = campaigns.filter((campaign) => {
     if (filter === 'all') return true;
     return campaign.type === filter;
   });
 
-  const vipCount = campaignsDetailed.filter((c) => c.type === 'vip').length;
-  const normalCount = campaignsDetailed.filter((c) => c.type === 'normal').length;
+  const vipCount = campaigns.filter((c) => c.type === 'vip').length;
+  const normalCount = campaigns.filter((c) => c.type === 'normal').length;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gray-50">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <i className="ri-loader-4-line text-5xl text-red-600 animate-spin"></i>
+            <p className="mt-4 text-gray-600">Hizmetler yükleniyor...</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -50,7 +66,7 @@ export default function CampaignsPage() {
                     filter === 'all' ? 'bg-red-600 text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-red-50 hover:text-red-600'
                   }`}
                 >
-                  Tümü ({campaignsDetailed.length})
+                  Tümü ({campaigns.length})
                 </button>
                 <button
                   onClick={() => setFilter('vip')}

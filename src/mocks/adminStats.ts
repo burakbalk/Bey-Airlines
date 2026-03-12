@@ -19,12 +19,12 @@ export const weeklySalesData = [
 ];
 
 export const occupancyData = [
-  { route: 'IST-AYT', doluluk: 92, kapasite: 180 },
-  { route: 'IST-IZM', doluluk: 85, kapasite: 180 },
-  { route: 'ANK-IST', doluluk: 78, kapasite: 180 },
-  { route: 'IZM-ANK', doluluk: 71, kapasite: 180 },
-  { route: 'AYT-IST', doluluk: 88, kapasite: 180 },
-  { route: 'IST-TZX', doluluk: 65, kapasite: 120 }
+  { route: 'IST-DXB', doluluk: 92, kapasite: 180 },
+  { route: 'DXB-IST', doluluk: 88, kapasite: 180 },
+  { route: 'ESB-DXB', doluluk: 78, kapasite: 180 },
+  { route: 'DXB-ESB', doluluk: 71, kapasite: 180 },
+  { route: 'ADB-DXB', doluluk: 85, kapasite: 180 },
+  { route: 'DXB-ADB', doluluk: 65, kapasite: 120 }
 ];
 
 export const revenueByClassData = [
@@ -38,55 +38,55 @@ export const recentReservations = [
     id: 1,
     pnr: 'ABC123',
     passenger: 'Ahmet Yılmaz',
-    route: 'IST → AYT',
+    route: 'IST → DXB',
     date: '2024-01-15',
-    amount: 1250,
+    amount: 3499,
     status: 'confirmed'
   },
   {
     id: 2,
     pnr: 'DEF456',
     passenger: 'Ayşe Demir',
-    route: 'IST → IZM',
+    route: 'DXB → IST',
     date: '2024-01-16',
-    amount: 980,
+    amount: 3499,
     status: 'confirmed'
   },
   {
     id: 3,
     pnr: 'GHI789',
     passenger: 'Mehmet Kaya',
-    route: 'ANK → IST',
+    route: 'ESB → DXB',
     date: '2024-01-16',
-    amount: 1150,
+    amount: 3699,
     status: 'pending'
   },
   {
     id: 4,
     pnr: 'JKL012',
     passenger: 'Fatma Şahin',
-    route: 'IZM → ANK',
+    route: 'DXB → ADB',
     date: '2024-01-17',
-    amount: 890,
+    amount: 3599,
     status: 'confirmed'
   },
   {
     id: 5,
     pnr: 'MNO345',
     passenger: 'Ali Öztürk',
-    route: 'AYT → IST',
+    route: 'ADB → DXB',
     date: '2024-01-17',
-    amount: 1320,
+    amount: 3599,
     status: 'confirmed'
   }
 ];
 
 export const popularRoutes = [
-  { route: 'İstanbul → Antalya', count: 145, percent: 85 },
-  { route: 'İstanbul → İzmir', count: 128, percent: 75 },
-  { route: 'Ankara → İstanbul', count: 112, percent: 65 },
-  { route: 'İzmir → Ankara', count: 98, percent: 55 },
-  { route: 'Antalya → İstanbul', count: 87, percent: 50 }
+  { route: 'İstanbul → Dubai', count: 145, percent: 85 },
+  { route: 'Dubai → İstanbul', count: 128, percent: 75 },
+  { route: 'Ankara → Dubai', count: 112, percent: 65 },
+  { route: 'İzmir → Dubai', count: 98, percent: 55 },
+  { route: 'Dubai → Ankara', count: 87, percent: 50 }
 ];
 
 export const monthlyRevenueData = [

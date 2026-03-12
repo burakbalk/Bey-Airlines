@@ -181,47 +181,47 @@ const SeatSelectionPage = () => {
         <div className="bg-white border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3 opacity-50">
-                <div className="w-10 h-10 rounded-full bg-green-600 text-white flex items-center justify-center font-semibold">
+              <div className="flex items-center space-x-1 sm:space-x-3 opacity-50">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-green-600 text-white flex items-center justify-center font-semibold">
                   <i className="ri-check-line text-lg"></i>
                 </div>
-                <div>
+                <div className="hidden sm:block">
                   <div className="text-sm font-semibold text-gray-500">Yolcu Bilgileri</div>
                   <div className="text-xs text-gray-400">Tamamlandı</div>
                 </div>
               </div>
-              
-              <div className="flex-1 h-0.5 bg-green-600 mx-4"></div>
-              
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center font-semibold">
+
+              <div className="flex-1 h-0.5 bg-green-600 mx-1 sm:mx-4"></div>
+
+              <div className="flex items-center space-x-1 sm:space-x-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-red-600 text-white flex items-center justify-center font-semibold">
                   2
                 </div>
-                <div>
+                <div className="hidden sm:block">
                   <div className="text-sm font-semibold text-red-600">Koltuk Seçimi</div>
                   <div className="text-xs text-gray-500">Koltuk seçin</div>
                 </div>
               </div>
-              
-              <div className="flex-1 h-0.5 bg-gray-200 mx-4"></div>
-              
-              <div className="flex items-center space-x-3 opacity-50">
-                <div className="w-10 h-10 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold">
+
+              <div className="flex-1 h-0.5 bg-gray-200 mx-1 sm:mx-4"></div>
+
+              <div className="flex items-center space-x-1 sm:space-x-3 opacity-50">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold">
                   3
                 </div>
-                <div>
+                <div className="hidden sm:block">
                   <div className="text-sm font-semibold text-gray-500">Ek Hizmetler</div>
                   <div className="text-xs text-gray-400">Bagaj, yemek, sigorta</div>
                 </div>
               </div>
-              
-              <div className="flex-1 h-0.5 bg-gray-200 mx-4"></div>
-              
-              <div className="flex items-center space-x-3 opacity-50">
-                <div className="w-10 h-10 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold">
+
+              <div className="flex-1 h-0.5 bg-gray-200 mx-1 sm:mx-4"></div>
+
+              <div className="flex items-center space-x-1 sm:space-x-3 opacity-50">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold">
                   4
                 </div>
-                <div>
+                <div className="hidden sm:block">
                   <div className="text-sm font-semibold text-gray-500">Ödeme</div>
                   <div className="text-xs text-gray-400">Ödeme ve onay</div>
                 </div>
@@ -234,7 +234,7 @@ const SeatSelectionPage = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Sol Taraf - Koltuk Haritası */}
             <div className="lg:col-span-2">
-              <div className="bg-white rounded-2xl shadow-lg p-6">
+              <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-6">Koltuk Seçimi</h2>
                 
                 {/* Yolcu Seçici */}
@@ -283,7 +283,7 @@ const SeatSelectionPage = () => {
                 </div>
 
                 {/* Uçak Kabini */}
-                <div className="bg-gradient-to-b from-gray-100 to-white rounded-2xl p-6 overflow-x-auto">
+                <div className="bg-gradient-to-b from-gray-100 to-white rounded-2xl p-3 sm:p-6 overflow-x-auto">
                   {/* Kokpit */}
                   <div className="flex justify-center mb-6">
                     <div className="w-32 h-16 bg-gray-300 rounded-t-full flex items-center justify-center">
@@ -375,9 +375,9 @@ const SeatSelectionPage = () => {
 
             {/* Sağ Taraf - Özet */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-24">
+              <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 sticky top-24">
                 <h3 className="text-lg font-bold text-gray-900 mb-6">Rezervasyon Özeti</h3>
-                
+
                 <div className="space-y-4 mb-6">
                   <div className="flex items-start space-x-3">
                     <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">

@@ -1,13 +1,60 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
-import { campaignsDetailed } from '../../mocks/campaignsDetailed';
+import { supabase } from '../../lib/supabase';
+import type { Campaign } from '../../hooks/useCampaigns';
 
 export default function CampaignDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const campaign = campaignsDetailed.find((c) => c.id === Number(id));
+  const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [similarCampaigns, setSimilarCampaigns] = useState<Campaign[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeAccordion, setActiveAccordion] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!id) { setLoading(false); return; }
+
+    const fetchCampaign = async () => {
+      setLoading(true);
+      const { data } = await supabase
+        .from('campaigns')
+        .select('*')
+        .eq('id', Number(id))
+        .single();
+
+      if (data) {
+        setCampaign(data as Campaign);
+        // Fetch similar campaigns
+        const { data: similar } = await supabase
+          .from('campaigns')
+          .select('*')
+          .eq('is_active', true)
+          .eq('type', data.type)
+          .neq('id', data.id)
+          .limit(3);
+        if (similar) setSimilarCampaigns(similar as Campaign[]);
+      }
+      setLoading(false);
+    };
+
+    fetchCampaign();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gray-50">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <i className="ri-loader-4-line text-5xl text-red-600 animate-spin"></i>
+            <p className="mt-4 text-gray-600">Yükleniyor...</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   if (!campaign) {
     return (
@@ -27,10 +74,6 @@ export default function CampaignDetailPage() {
       </div>
     );
   }
-
-  const similarCampaigns = campaignsDetailed
-    .filter((c) => c.id !== campaign.id && c.type === campaign.type)
-    .slice(0, 3);
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -66,7 +109,7 @@ export default function CampaignDetailPage() {
                   </div>
                   Hizmet Detayları
                 </h2>
-                <p className="text-gray-700 leading-relaxed mb-6">{campaign.longDescription}</p>
+                <p className="text-gray-700 leading-relaxed mb-6">{campaign.long_description}</p>
 
                 <h3 className="text-lg font-bold text-gray-900 mb-4">Avantajlar</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

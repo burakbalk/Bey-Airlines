@@ -26,13 +26,13 @@ export default function CheckInPage() {
       {/* Hero */}
       <div className="relative bg-gradient-to-br from-red-600 via-red-500 to-red-700 pt-16 pb-16">
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/20"></div>
-        <div className="relative z-10 max-w-4xl mx-auto px-8 text-center">
+        <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-8 text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-full mb-6">
             <i className="ri-checkbox-circle-line text-3xl text-white"></i>
           </div>
-          <h1 className="text-5xl font-bold text-white mb-4">Online Check-in</h1>
+          <h1 className="text-3xl sm:text-5xl font-bold text-white mb-4">Online Check-in</h1>
           <p className="text-xl text-red-100">PNR kodunuz ve soyadınızla hızlıca check-in yapın</p>
-          <div className="flex items-center justify-center gap-8 mt-8">
+          <div className="flex items-center justify-center flex-wrap gap-2 sm:gap-8 mt-8">
             {['Hızlı İşlem', 'Dijital Biniş Kartı', 'Koltuk Seçimi'].map((item, i) => (
               <div key={i} className="flex items-center gap-2 text-white/90 text-sm">
                 <i className="ri-check-line text-red-200"></i>
@@ -45,12 +45,12 @@ export default function CheckInPage() {
 
       <div className="pb-16">
         {step === 'form' ? (
-          <div className="max-w-2xl mx-auto px-8 -mt-10 relative z-10">
+          <div className="max-w-2xl mx-auto px-4 sm:px-8 -mt-10 relative z-10">
             <div className="bg-white rounded-2xl shadow-2xl p-10 border border-gray-100">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Rezervasyon Bilgileriniz</h2>
               <p className="text-gray-500 text-sm mb-8">Biletinizde yazan PNR kodu ve soyadınızı girin</p>
               <form onSubmit={handleCheckIn}>
-                <div className="grid grid-cols-2 gap-6 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6 mb-6">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">PNR Kodu</label>
                     <input
@@ -88,7 +88,7 @@ export default function CheckInPage() {
               </form>
 
               {/* Info Cards */}
-              <div className="grid grid-cols-3 gap-4 mt-8 pt-8 border-t border-gray-100">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mt-8 pt-8 border-t border-gray-100">
                 {[
                   { icon: 'ri-time-line', title: 'Ne Zaman?', desc: 'Uçuştan 24 saat önce açılır' },
                   { icon: 'ri-smartphone-line', title: 'Dijital Kart', desc: 'Telefona kaydedin' },
@@ -106,7 +106,7 @@ export default function CheckInPage() {
             </div>
           </div>
         ) : (
-          <div className="max-w-5xl mx-auto px-8 -mt-10 relative z-10">
+          <div className="max-w-5xl mx-auto px-4 sm:px-8 -mt-10 relative z-10">
             {/* Success Banner */}
             <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center gap-3 shadow-sm">
               <div className="w-10 h-10 flex items-center justify-center bg-green-100 rounded-full">
@@ -122,32 +122,32 @@ export default function CheckInPage() {
               {/* Left: Flight Info + Seat Map */}
               <div className="lg:col-span-2 space-y-6">
                 {/* Flight Info */}
-                <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100">
+                <div className="bg-white rounded-2xl shadow-md p-3 sm:p-6 border border-gray-100">
                   <div className="flex items-center justify-between mb-6">
                     <div>
                       <h3 className="text-2xl font-bold text-gray-900">AHMET YILMAZ</h3>
-                      <p className="text-gray-500 mt-1">Uçuş: <span className="font-semibold text-red-600">BY101</span> · 15 Haziran 2024</p>
+                      <p className="text-gray-500 mt-1">Uçuş: <span className="font-semibold text-red-600">BY1101</span> · 15 Haziran 2024</p>
                     </div>
                     <div className="text-right bg-red-50 px-5 py-3 rounded-xl">
                       <p className="text-xs text-gray-500 mb-1">Koltuk</p>
-                      <p className="text-4xl font-black text-red-600">{selectedSeat}</p>
+                      <p className="text-2xl sm:text-4xl font-black text-red-600">{selectedSeat}</p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between bg-gray-50 rounded-xl p-4">
                     <div className="text-center">
                       <p className="text-2xl font-bold text-gray-900">İSTANBUL</p>
-                      <p className="text-sm text-gray-500 mt-1">IST · 08:30</p>
+                      <p className="text-sm text-gray-500 mt-1">IST · 06:30</p>
                     </div>
                     <div className="flex flex-col items-center gap-1">
                       <i className="ri-flight-takeoff-line text-2xl text-red-600"></i>
-                      <p className="text-xs text-gray-400">1s 20dk</p>
+                      <p className="text-xs text-gray-400">4s 30dk</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-2xl font-bold text-gray-900">ANKARA</p>
-                      <p className="text-sm text-gray-500 mt-1">ESB · 09:50</p>
+                      <p className="text-2xl font-bold text-gray-900">DUBAİ</p>
+                      <p className="text-sm text-gray-500 mt-1">DXB · 11:00</p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-4 mt-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mt-4">
                     {[
                       { label: 'Kapı', value: 'A12' },
                       { label: 'Terminal', value: 'Terminal 1' },
@@ -162,9 +162,9 @@ export default function CheckInPage() {
                 </div>
 
                 {/* Seat Map */}
-                <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100">
+                <div className="bg-white rounded-2xl shadow-md p-3 sm:p-6 border border-gray-100">
                   <h3 className="text-lg font-bold text-gray-900 mb-5">Koltuk Seçimi</h3>
-                  <div className="flex justify-center gap-6 text-sm mb-6">
+                  <div className="flex justify-center gap-2 sm:gap-6 text-sm mb-6">
                     {[
                       { color: 'bg-gray-200', label: 'Boş' },
                       { color: 'bg-red-600', label: 'Dolu' },
@@ -176,7 +176,7 @@ export default function CheckInPage() {
                       </div>
                     ))}
                   </div>
-                  <div className="grid grid-cols-6 gap-2 max-w-xs mx-auto">
+                  <div className="grid grid-cols-6 gap-1 sm:gap-2 max-w-xs mx-auto">
                     {seats.map((seat) => (
                       <button
                         key={seat.number}
@@ -199,7 +199,7 @@ export default function CheckInPage() {
 
               {/* Right: Boarding Pass */}
               <div className="lg:col-span-1">
-                <div className="bg-white rounded-2xl shadow-md p-6 sticky top-24 border border-gray-100">
+                <div className="bg-white rounded-2xl shadow-md p-3 sm:p-6 sticky top-24 border border-gray-100">
                   <h3 className="text-lg font-bold text-gray-900 mb-5 text-center">Dijital Biniş Kartı</h3>
                   <div className="bg-gradient-to-br from-red-600 to-red-800 rounded-2xl p-5 text-white">
                     <div className="text-center mb-4">
@@ -216,9 +216,9 @@ export default function CheckInPage() {
                     <div className="space-y-2.5 text-sm">
                       {[
                         { label: 'Yolcu', value: 'AHMET YILMAZ' },
-                        { label: 'Uçuş', value: 'BY101' },
+                        { label: 'Uçuş', value: 'BY1101' },
                         { label: 'Tarih', value: '15 HAZ 2024' },
-                        { label: 'Kalkış', value: '08:30' },
+                        { label: 'Kalkış', value: '06:30' },
                         { label: 'Kapı', value: 'A12' },
                         { label: 'Koltuk', value: selectedSeat },
                       ].map((item, i) => (

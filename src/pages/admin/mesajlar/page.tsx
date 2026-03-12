@@ -1,40 +1,36 @@
 import { useState } from 'react';
-import { messages as initialMessages } from '../../../mocks/messages';
+import { useAdminMessages, Message } from '../../../hooks/useMessages';
 
 export default function AdminMessagesPage() {
-  const [messages, setMessages] = useState(initialMessages);
-  const [selectedMessage, setSelectedMessage] = useState<typeof initialMessages[0] | null>(null);
+  const { messages, loading, updateStatus, reply, remove } = useAdminMessages();
+  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'unread' | 'read' | 'replied'>('all');
 
   const filteredMessages = messages.filter(msg => {
-    const matchesSearch = 
-      msg.sender.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch =
+      msg.sender_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       msg.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
       msg.email.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = statusFilter === 'all' || msg.status === statusFilter;
-    
+
     return matchesSearch && matchesStatus;
   });
 
   const unreadCount = messages.filter(m => m.status === 'unread').length;
 
-  const handleMarkAsRead = (id: number) => {
-    setMessages(messages.map(msg => 
-      msg.id === id ? { ...msg, status: 'read' as const } : msg
-    ));
+  const handleMarkAsRead = async (id: number) => {
+    await updateStatus(id, 'read');
   };
 
-  const handleMarkAsReplied = (id: number) => {
-    setMessages(messages.map(msg => 
-      msg.id === id ? { ...msg, status: 'replied' as const } : msg
-    ));
+  const handleMarkAsReplied = async (id: number) => {
+    await reply(id, 'Yanıtlandı olarak işaretlendi');
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (confirm('Bu mesajı silmek istediğinizden emin misiniz?')) {
-      setMessages(messages.filter(msg => msg.id !== id));
+      await remove(id);
       setSelectedMessage(null);
     }
   };
@@ -51,13 +47,14 @@ export default function AdminMessagesPage() {
       replied: 'Yanıtlandı'
     };
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-medium ${styles[status as keyof typeof styles]}`}>
-        {labels[status as keyof typeof labels]}
+      <span className={`px-3 py-1 rounded-full text-xs font-medium ${styles[status as keyof typeof styles] || 'bg-gray-100 text-gray-700'}`}>
+        {labels[status as keyof typeof labels] || status}
       </span>
     );
   };
 
-  const getCategoryLabel = (category: string) => {
+  const getCategoryLabel = (category: string | null) => {
+    if (!category) return 'Genel';
     const labels: Record<string, string> = {
       complaint: 'Şikayet',
       reservation: 'Rezervasyon',
@@ -72,6 +69,14 @@ export default function AdminMessagesPage() {
     };
     return labels[category] || category;
   };
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8">
@@ -232,13 +237,13 @@ export default function AdminMessagesPage() {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                        {message.sender.charAt(0)}
+                        {message.sender_name.charAt(0)}
                       </div>
                       <div>
                         <p className={`font-medium text-gray-900 text-sm ${
                           message.status === 'unread' ? 'font-bold' : ''
                         }`}>
-                          {message.sender}
+                          {message.sender_name}
                         </p>
                         <p className="text-xs text-gray-500">{message.email}</p>
                       </div>
@@ -258,7 +263,7 @@ export default function AdminMessagesPage() {
                   </td>
                   <td className="px-6 py-4">
                     <p className="text-sm text-gray-600">
-                      {new Date(message.date).toLocaleDateString('tr-TR', {
+                      {new Date(message.created_at).toLocaleDateString('tr-TR', {
                         day: '2-digit',
                         month: 'short',
                         year: 'numeric',
@@ -316,25 +321,27 @@ export default function AdminMessagesPage() {
               <div className="bg-gray-50 rounded-xl p-4 mb-6">
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-                    {selectedMessage.sender.charAt(0)}
+                    {selectedMessage.sender_name.charAt(0)}
                   </div>
                   <div className="flex-1">
-                    <p className="font-bold text-gray-900 mb-1">{selectedMessage.sender}</p>
+                    <p className="font-bold text-gray-900 mb-1">{selectedMessage.sender_name}</p>
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <i className="ri-mail-line"></i>
                         <span>{selectedMessage.email}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <i className="ri-phone-line"></i>
-                        <span>{selectedMessage.phone}</span>
-                      </div>
+                      {selectedMessage.phone && (
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <i className="ri-phone-line"></i>
+                          <span>{selectedMessage.phone}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">
                     {getStatusBadge(selectedMessage.status)}
                     <p className="text-xs text-gray-500 mt-2">
-                      {new Date(selectedMessage.date).toLocaleDateString('tr-TR', {
+                      {new Date(selectedMessage.created_at).toLocaleDateString('tr-TR', {
                         day: '2-digit',
                         month: 'long',
                         year: 'numeric',
@@ -363,12 +370,22 @@ export default function AdminMessagesPage() {
                 </p>
               </div>
 
+              {/* Admin Reply */}
+              {selectedMessage.admin_reply && (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-6 mb-6">
+                  <p className="text-sm font-semibold text-green-700 mb-2">Admin Yanıtı:</p>
+                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                    {selectedMessage.admin_reply}
+                  </p>
+                </div>
+              )}
+
               {/* İşlem Butonları */}
               <div className="flex gap-3">
                 {selectedMessage.status === 'unread' && (
                   <button
-                    onClick={() => {
-                      handleMarkAsRead(selectedMessage.id);
+                    onClick={async () => {
+                      await handleMarkAsRead(selectedMessage.id);
                       setSelectedMessage({ ...selectedMessage, status: 'read' });
                     }}
                     className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-700 transition-colors whitespace-nowrap"
@@ -379,8 +396,8 @@ export default function AdminMessagesPage() {
                 )}
                 {selectedMessage.status !== 'replied' && (
                   <button
-                    onClick={() => {
-                      handleMarkAsReplied(selectedMessage.id);
+                    onClick={async () => {
+                      await handleMarkAsReplied(selectedMessage.id);
                       setSelectedMessage({ ...selectedMessage, status: 'replied' });
                     }}
                     className="flex-1 bg-green-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-green-700 transition-colors whitespace-nowrap"

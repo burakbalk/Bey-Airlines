@@ -65,72 +65,9 @@ export default function ReservationConfirmationPage() {
     if (reservationData) {
       const data = JSON.parse(reservationData);
       setReservation(data);
-      
-      // Rezervasyonu kullanıcının rezervasyonlarına ekle
-      const existingReservations = localStorage.getItem('userReservations');
-      const reservations = existingReservations ? JSON.parse(existingReservations) : [];
-      
-      // Hesabım sayfasının beklediği formata dönüştür
-      const accountReservation = {
-        id: data.pnr,
-        pnr: data.pnr,
-        route: `${data.flight.from} → ${data.flight.to}`,
-        flightNumber: data.flight.flightNumber,
-        date: data.flight.date,
-        time: data.flight.time,
-        passengers: data.passengers.length,
-        seat: data.passengers.map((p: any) => p.seatNumber).join(', '),
-        price: `${data.payment.total.toLocaleString('tr-TR')} TL`,
-        status: 'Onaylandı',
-        type: 'Normal',
-        departure: data.flight.fromCode,
-        arrival: data.flight.toCode,
-        duration: data.flight.duration,
-        passengerDetails: data.passengers.map((p: any) => ({
-          name: p.firstName,
-          surname: p.lastName,
-          tcNo: p.tcNo,
-          birthDate: p.birthDate,
-          gender: p.gender,
-          seat: p.seatNumber || '-'
-        })),
-        contact: data.contact,
-        extraServices: {
-          baggage: data.extras.baggage > 0 ? [`+${data.extras.baggage} kg`] : [],
-          meals: data.extras.meal !== 'none' ? [data.extras.meal] : [],
-          insurance: data.extras.insurance,
-          priorityBoarding: data.extras.priority
-        }
-      };
 
-      // Aynı PNR'li rezervasyon yoksa ekle
-      if (!reservations.find((r: any) => r.pnr === data.pnr)) {
-        reservations.unshift(accountReservation);
-        localStorage.setItem('userReservations', JSON.stringify(reservations));
-      }
-
-      // Yolcuları kayıtlı yolculara ekle
-      if (data.passengers && data.passengers.length > 0) {
-        const savedPassengers = localStorage.getItem('savedPassengers');
-        const passengers = savedPassengers ? JSON.parse(savedPassengers) : [];
-
-        data.passengers.forEach((passenger: any) => {
-          // Aynı TC'li yolcu yoksa ekle
-          if (!passengers.find((p: any) => p.tcNo === passenger.tcNo)) {
-            passengers.push({
-              id: Date.now().toString() + Math.random().toString(36),
-              name: passenger.firstName,
-              surname: passenger.lastName,
-              tcNo: passenger.tcNo,
-              birthDate: passenger.birthDate,
-              phone: data.contact?.phone || '',
-              email: data.contact?.email || ''
-            });
-          }
-        });
-
-        localStorage.setItem('savedPassengers', JSON.stringify(passengers));
-      }
+      // Reservations and saved passengers are now stored in Supabase
+      // (handled by useCreateReservation hook during payment)
 
       setShowSuccess(true);
       setTimeout(() => {
@@ -196,14 +133,14 @@ export default function ReservationConfirmationPage() {
             <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
               <i className="ri-flight-takeoff-line text-3xl text-green-600"></i>
             </div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Rezervasyonunuz Hazır!</h1>
+            <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-2">Rezervasyonunuz Hazır!</h1>
             <p className="text-gray-600 text-lg">PNR Kodunuz: <span className="font-bold text-red-600">{reservation.pnr}</span></p>
           </div>
 
           {/* Bilet Kartı */}
           <div className="bg-white rounded-2xl shadow-2xl overflow-hidden mb-6">
             {/* Bilet Üst Kısım - Uçuş Bilgileri */}
-            <div className="bg-gradient-to-br from-red-600 via-red-700 to-red-800 p-8 text-white relative overflow-hidden">
+            <div className="bg-gradient-to-br from-red-600 via-red-700 to-red-800 p-4 sm:p-8 text-white relative overflow-hidden">
               <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32"></div>
               <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full -ml-24 -mb-24"></div>
               
@@ -222,12 +159,12 @@ export default function ReservationConfirmationPage() {
                 <div className="flex items-center justify-between">
                   <div className="text-center">
                     <p className="text-red-100 text-sm mb-2">Kalkış</p>
-                    <p className="text-5xl font-bold mb-2">{reservation.flight.fromCode}</p>
+                    <p className="text-3xl sm:text-5xl font-bold mb-2">{reservation.flight.fromCode}</p>
                     <p className="text-lg">{reservation.flight.from}</p>
                     <p className="text-red-100 mt-2">{reservation.flight.time}</p>
                   </div>
 
-                  <div className="flex-1 px-8">
+                  <div className="flex-1 px-4 sm:px-8">
                     <div className="relative">
                       <div className="h-0.5 bg-white/30"></div>
                       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-red-700 px-4 py-2 rounded-full">
@@ -239,7 +176,7 @@ export default function ReservationConfirmationPage() {
 
                   <div className="text-center">
                     <p className="text-red-100 text-sm mb-2">Varış</p>
-                    <p className="text-5xl font-bold mb-2">{reservation.flight.toCode}</p>
+                    <p className="text-3xl sm:text-5xl font-bold mb-2">{reservation.flight.toCode}</p>
                     <p className="text-lg">{reservation.flight.to}</p>
                     <p className="text-red-100 mt-2">~{reservation.flight.time.split(':')[0]}:{(parseInt(reservation.flight.time.split(':')[1]) + parseInt(reservation.flight.duration.split(' ')[0]) * 60) % 60}</p>
                   </div>
@@ -268,7 +205,7 @@ export default function ReservationConfirmationPage() {
             </div>
 
             {/* Bilet Alt Kısım - Yolcu ve Detaylar */}
-            <div className="p-8">
+            <div className="p-4 sm:p-8">
               {/* Yolcular */}
               <div className="mb-8">
                 <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -349,22 +286,12 @@ export default function ReservationConfirmationPage() {
               <div className="border-t border-gray-200 pt-6">
                 <div className="bg-gray-900 rounded-xl p-6 text-center">
                   <div className="mb-3">
-                    <svg className="mx-auto" width="280" height="80" viewBox="0 0 280 80">
-                      {/* Barkod çizgileri */}
-                      {Array.from({ length: 40 }).map((_, i) => (
-                        <rect
-                          key={i}
-                          x={i * 7}
-                          y="0"
-                          width={Math.random() > 0.5 ? 3 : 2}
-                          height="60"
-                          fill="white"
-                        />
-                      ))}
-                      <text x="140" y="75" textAnchor="middle" fill="white" fontSize="12" fontFamily="monospace">
-                        {reservation.pnr}
-                      </text>
-                    </svg>
+                    <img
+                      src="/images/app/barcode.webp"
+                      alt="Barkod"
+                      className="mx-auto h-20 object-contain invert"
+                    />
+                    <p className="text-white font-mono text-sm mt-2 tracking-widest">{reservation.pnr}</p>
                   </div>
                   <p className="text-white/60 text-xs">Check-in sırasında bu kodu gösteriniz</p>
                 </div>

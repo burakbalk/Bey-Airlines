@@ -2,147 +2,157 @@
 import { useState } from 'react';
 import AdminLayout from '../../../components/admin/AdminLayout';
 import AdminGuard from '../../../components/admin/AdminGuard';
-import { flights as initialFlights } from '../../../mocks/flights';
-
-interface Flight {
-  id: string;
-  flightNumber: string;
-  from: string;
-  to: string;
-  date: string;
-  departureTime: string;
-  arrivalTime: string;
-  capacity: number;
-  occupied: number;
-  price: number;
-  class: string;
-  status: 'Aktif' | 'İptal' | 'Gecikti';
-}
+import { useAllFlights, FlightResult } from '../../../hooks/useFlights';
+import { supabase } from '../../../lib/supabase';
 
 export default function AdminFlightsPage() {
-  // Initialize flights with mock data and random occupancy
-  const [flights, setFlights] = useState<Flight[]>(
-    initialFlights.map((f) => ({
-      id: f.id,
-      flightNumber: f.flightNumber,
-      from: f.from,
-      to: f.to,
-      date: f.date,
-      departureTime: f.departureTime,
-      arrivalTime: f.arrivalTime,
-      capacity: 180,
-      occupied: Math.floor(Math.random() * 180),
-      price: f.price,
-      class: f.class,
-      status: 'Aktif' as const,
-    }))
-  );
+  const { flights, loading, refresh } = useAllFlights();
 
   const [showModal, setShowModal] = useState(false);
-  const [editingFlight, setEditingFlight] = useState<Flight | null>(null);
+  const [editingFlight, setEditingFlight] = useState<FlightResult | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('Tümü');
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
-    flightNumber: '',
-    from: '',
-    to: '',
-    date: '',
-    departureTime: '',
-    arrivalTime: '',
+    flight_number: '',
+    from_city: '',
+    to_city: '',
+    from_code: '',
+    to_code: '',
+    flight_date: '',
+    departure_time: '',
+    arrival_time: '',
     capacity: 180,
     price: 0,
-    class: 'Ekonomi',
+    flight_class: 'Ekonomi',
   });
 
   // ---------- Modal handling ----------
   const handleAdd = () => {
     setEditingFlight(null);
     setFormData({
-      flightNumber: '',
-      from: '',
-      to: '',
-      date: '',
-      departureTime: '',
-      arrivalTime: '',
+      flight_number: '',
+      from_city: '',
+      to_city: '',
+      from_code: '',
+      to_code: '',
+      flight_date: '',
+      departure_time: '',
+      arrival_time: '',
       capacity: 180,
       price: 0,
-      class: 'Ekonomi',
+      flight_class: 'Ekonomi',
     });
     setShowModal(true);
   };
 
-  const handleEdit = (flight: Flight) => {
+  const handleEdit = (flight: FlightResult) => {
     setEditingFlight(flight);
     setFormData({
-      flightNumber: flight.flightNumber,
-      from: flight.from,
-      to: flight.to,
-      date: flight.date,
-      departureTime: flight.departureTime,
-      arrivalTime: flight.arrivalTime,
+      flight_number: flight.flight_number,
+      from_city: flight.from_city,
+      to_city: flight.to_city,
+      from_code: flight.from_code,
+      to_code: flight.to_code,
+      flight_date: flight.flight_date,
+      departure_time: flight.departure_time,
+      arrival_time: flight.arrival_time,
       capacity: flight.capacity,
       price: flight.price,
-      class: flight.class,
+      flight_class: flight.flight_class,
     });
     setShowModal(true);
   };
 
-  const handleSave = () => {
-    // Basic validation
-    if (!formData.flightNumber || !formData.from || !formData.to) {
+  const handleSave = async () => {
+    if (!formData.flight_number || !formData.from_city || !formData.to_city) {
       alert('Uçuş numarası, kalkış ve varış havalimanı zorunludur.');
       return;
     }
 
     if (editingFlight) {
-      // Update existing flight
-      setFlights((prev) =>
-        prev.map((f) =>
-          f.id === editingFlight.id ? { ...f, ...formData } : f
-        )
-      );
+      await supabase
+        .from('flights')
+        .update({
+          flight_number: formData.flight_number,
+          from_city: formData.from_city,
+          to_city: formData.to_city,
+          from_code: formData.from_code,
+          to_code: formData.to_code,
+          flight_date: formData.flight_date,
+          departure_time: formData.departure_time,
+          arrival_time: formData.arrival_time,
+          capacity: formData.capacity,
+          price: formData.price,
+          flight_class: formData.flight_class,
+        })
+        .eq('id', editingFlight.id);
     } else {
-      // Add new flight
-      const newFlight: Flight = {
-        id: `FL${Date.now()}`,
-        ...formData,
-        occupied: 0,
+      await supabase.from('flights').insert({
+        flight_number: formData.flight_number,
+        from_city: formData.from_city,
+        to_city: formData.to_city,
+        from_code: formData.from_code,
+        to_code: formData.to_code,
+        flight_date: formData.flight_date,
+        departure_time: formData.departure_time,
+        arrival_time: formData.arrival_time,
+        capacity: formData.capacity,
+        price: formData.price,
+        flight_class: formData.flight_class,
         status: 'Aktif',
-      };
-      setFlights((prev) => [...prev, newFlight]);
+        booked_seats: 0,
+      });
     }
+    await refresh();
     setShowModal(false);
   };
 
   // ---------- Delete handling ----------
-  const handleDelete = (id: string) => {
-    setFlights((prev) => prev.filter((f) => f.id !== id));
+  const handleDelete = async (id: number) => {
+    await supabase.from('flights').delete().eq('id', id);
+    await refresh();
     setShowDeleteConfirm(null);
   };
 
   // ---------- Status change ----------
-  const handleStatusChange = (
-    id: string,
-    status: Flight['status']
-  ) => {
-    setFlights((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, status } : f))
-    );
+  const handleStatusChange = async (id: number, status: string) => {
+    await supabase.from('flights').update({ status }).eq('id', id);
+    await refresh();
   };
 
   // ---------- Filtering ----------
+  const statusMap: Record<string, string> = {
+    'Aktif': 'Aktif',
+    'İptal': 'İptal',
+    'Gecikti': 'Gecikti',
+  };
+
   const filteredFlights = flights.filter((f) => {
     const lowerSearch = searchTerm.toLowerCase();
     const matchesSearch =
-      f.flightNumber.toLowerCase().includes(lowerSearch) ||
-      f.from.toLowerCase().includes(lowerSearch) ||
-      f.to.toLowerCase().includes(lowerSearch);
+      f.flight_number.toLowerCase().includes(lowerSearch) ||
+      f.from_city.toLowerCase().includes(lowerSearch) ||
+      f.to_city.toLowerCase().includes(lowerSearch) ||
+      f.from_code.toLowerCase().includes(lowerSearch) ||
+      f.to_code.toLowerCase().includes(lowerSearch);
     const matchesStatus =
-      statusFilter === 'Tümü' || f.status === statusFilter;
+      statusFilter === 'Tümü' || f.status === statusMap[statusFilter] || f.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  if (loading) {
+    return (
+      <AdminGuard>
+        <AdminLayout>
+          <div className="flex items-center justify-center h-96">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600"></div>
+          </div>
+        </AdminLayout>
+      </AdminGuard>
+    );
+  }
 
   return (
     <AdminGuard>
@@ -236,7 +246,7 @@ export default function AdminFlightsPage() {
                 <tbody className="divide-y divide-gray-200">
                   {filteredFlights.map((flight) => {
                     const occupancyRate =
-                      (flight.occupied / flight.capacity) * 100;
+                      flight.capacity > 0 ? (flight.booked_seats / flight.capacity) * 100 : 0;
                     return (
                       <tr
                         key={flight.id}
@@ -244,28 +254,28 @@ export default function AdminFlightsPage() {
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="font-semibold text-gray-900">
-                            {flight.flightNumber}
+                            {flight.flight_number}
                           </div>
                           <div className="text-xs text-gray-500">
-                            {flight.class}
+                            {flight.flight_class}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <span className="font-medium text-gray-900">
-                              {flight.from}
+                              {flight.from_city} ({flight.from_code})
                             </span>
                             <i className="ri-arrow-right-line text-gray-400"></i>
                             <span className="font-medium text-gray-900">
-                              {flight.to}
+                              {flight.to_city} ({flight.to_code})
                             </span>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                          {flight.date}
+                          {flight.flight_date}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                          {flight.departureTime} - {flight.arrivalTime}
+                          {flight.departure_time?.slice(0, 5)} - {flight.arrival_time?.slice(0, 5)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                           {flight.capacity}
@@ -281,25 +291,22 @@ export default function AdminFlightsPage() {
                                     ? 'bg-yellow-500'
                                     : 'bg-green-500'
                                 }`}
-                                style={{ width: `${occupancyRate}%` }}
+                                style={{ width: `${Math.min(occupancyRate, 100)}%` }}
                               ></div>
                             </div>
                             <span className="text-xs text-gray-600">
-                              {flight.occupied}/{flight.capacity}
+                              {flight.booked_seats}/{flight.capacity}
                             </span>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                          ₺{flight.price.toLocaleString()}
+                          ₺{Number(flight.price).toLocaleString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <select
                             value={flight.status}
                             onChange={(e) =>
-                              handleStatusChange(
-                                flight.id,
-                                e.target.value as Flight['status']
-                              )
+                              handleStatusChange(flight.id, e.target.value)
                             }
                             className={`px-3 py-1 rounded-lg text-xs font-medium cursor-pointer ${
                               flight.status === 'Aktif'
@@ -359,9 +366,9 @@ export default function AdminFlightsPage() {
                     </label>
                     <input
                       type="text"
-                      value={formData.flightNumber}
+                      value={formData.flight_number}
                       onChange={(e) =>
-                        setFormData({ ...formData, flightNumber: e.target.value })
+                        setFormData({ ...formData, flight_number: e.target.value })
                       }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
                       placeholder="ÖRN: TK123"
@@ -372,9 +379,9 @@ export default function AdminFlightsPage() {
                       Sınıf
                     </label>
                     <select
-                      value={formData.class}
+                      value={formData.flight_class}
                       onChange={(e) =>
-                        setFormData({ ...formData, class: e.target.value })
+                        setFormData({ ...formData, flight_class: e.target.value })
                       }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm cursor-pointer"
                     >
@@ -389,30 +396,62 @@ export default function AdminFlightsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Kalkış Havalimanı
+                      Kalkış Şehri
                     </label>
                     <input
                       type="text"
-                      value={formData.from}
+                      value={formData.from_city}
                       onChange={(e) =>
-                        setFormData({ ...formData, from: e.target.value })
+                        setFormData({ ...formData, from_city: e.target.value })
                       }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
-                      placeholder="İstanbul (IST)"
+                      placeholder="İstanbul"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Varış Havalimanı
+                      Varış Şehri
                     </label>
                     <input
                       type="text"
-                      value={formData.to}
+                      value={formData.to_city}
                       onChange={(e) =>
-                        setFormData({ ...formData, to: e.target.value })
+                        setFormData({ ...formData, to_city: e.target.value })
                       }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
-                      placeholder="Ankara (ESB)"
+                      placeholder="Ankara"
+                    />
+                  </div>
+                </div>
+
+                {/* Row 2b - Airport codes */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Kalkış Kodu
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.from_code}
+                      onChange={(e) =>
+                        setFormData({ ...formData, from_code: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
+                      placeholder="IST"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Varış Kodu
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.to_code}
+                      onChange={(e) =>
+                        setFormData({ ...formData, to_code: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
+                      placeholder="ESB"
                     />
                   </div>
                 </div>
@@ -425,9 +464,9 @@ export default function AdminFlightsPage() {
                     </label>
                     <input
                       type="date"
-                      value={formData.date}
+                      value={formData.flight_date}
                       onChange={(e) =>
-                        setFormData({ ...formData, date: e.target.value })
+                        setFormData({ ...formData, flight_date: e.target.value })
                       }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
                     />
@@ -438,11 +477,11 @@ export default function AdminFlightsPage() {
                     </label>
                     <input
                       type="time"
-                      value={formData.departureTime}
+                      value={formData.departure_time}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          departureTime: e.target.value,
+                          departure_time: e.target.value,
                         })
                       }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
@@ -454,11 +493,11 @@ export default function AdminFlightsPage() {
                     </label>
                     <input
                       type="time"
-                      value={formData.arrivalTime}
+                      value={formData.arrival_time}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          arrivalTime: e.target.value,
+                          arrival_time: e.target.value,
                         })
                       }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"

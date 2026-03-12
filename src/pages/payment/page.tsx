@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
+import { useCreateReservation } from '../../hooks/useReservations';
 
 interface BookingData {
   flightId: string;
@@ -15,21 +16,14 @@ interface BookingData {
   extraServices: any;
 }
 
-const generatePNR = (): string => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let pnr = '';
-  for (let i = 0; i < 6; i++) {
-    pnr += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return pnr;
-};
-
 const PaymentPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  
+  const { create: createReservation } = useCreateReservation();
+
   const [bookingData, setBookingData] = useState<BookingData | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   const [cardNumber, setCardNumber] = useState('');
   const [cardName, setCardName] = useState('');
@@ -107,8 +101,9 @@ const PaymentPage = () => {
     }
   };
 
-  const handlePayment = () => {
+  const handlePayment = async () => {
     // Validasyon
+    setPaymentError(null);
     if (!cardNumber || cardNumber.replace(/\s/g, '').length !== 16) {
       alert('Lütfen geçerli bir kart numarası giriniz');
       return;
@@ -128,65 +123,96 @@ const PaymentPage = () => {
 
     setIsProcessing(true);
 
-    setTimeout(() => {
-      // PNR kodu oluştur
-      const pnr = generatePNR();
+    // Şehir kodu eşlemesi
+    const cityCodeMap: Record<string, string> = {
+      'İstanbul': 'IST', 'Ankara': 'ANK', 'İzmir': 'IZM', 'Antalya': 'AYT',
+      'Dubai': 'DXB', 'Trabzon': 'TZX', 'Bodrum': 'BJV', 'Dalaman': 'DLM'
+    };
 
-      // Şehir kodu eşlemesi
-      const cityCodeMap: Record<string, string> = {
-        'İstanbul': 'IST', 'Ankara': 'ANK', 'İzmir': 'IZM', 'Antalya': 'AYT',
-        'Dubai': 'DXB', 'Trabzon': 'TZX', 'Bodrum': 'BJV', 'Dalaman': 'DLM'
-      };
+    const flightNumber = 'BEY ' + Math.floor(100 + Math.random() * 900);
+    const flightTime = '14:30';
 
-      // Rezervasyon verisini hazırla
-      const reservationData = {
-        pnr: pnr,
-        flight: {
-          from: bookingData.from,
-          to: bookingData.to,
-          fromCode: cityCodeMap[bookingData.from] || bookingData.from?.substring(0, 3).toUpperCase(),
-          toCode: cityCodeMap[bookingData.to] || bookingData.to?.substring(0, 3).toUpperCase(),
-          date: bookingData.date,
-          time: '14:30',
-          flightNumber: 'BEY ' + Math.floor(100 + Math.random() * 900),
-          duration: '2s 15dk',
-          airline: 'Bey Airlines'
-        },
-        passengers: bookingData.passengers.map((p: any, i: number) => ({
-          firstName: p.firstName,
-          lastName: p.lastName,
-          tcNo: p.tcNo,
-          birthDate: p.birthDate,
-          gender: p.gender,
-          seatNumber: bookingData.seats?.[i]?.seatId || '-'
-        })),
-        contact: bookingData.contactInfo,
-        extras: {
-          baggage: bookingData.extraServices?.baggagePrice || 0,
-          meal: bookingData.extraServices?.meal || 'none',
-          insurance: bookingData.extraServices?.insurance || false,
-          priority: bookingData.extraServices?.priorityBoarding || false
-        },
-        payment: {
-          subtotal: flightTotal,
-          seatFee: seatTotal,
-          baggageFee: baggageTotal,
-          mealFee: mealTotal,
-          insuranceFee: insuranceTotal,
-          priorityFee: priorityTotal,
-          tax: Math.round(tax),
-          serviceFee: serviceFee,
-          total: Math.round(finalTotal)
-        },
-        bookingDate: new Date().toISOString()
-      };
+    // Create reservation via Supabase
+    const { pnr, error } = await createReservation({
+      flightId: Number(bookingData.flightId) || 0,
+      flightNumber,
+      route: `${bookingData.from} → ${bookingData.to}`,
+      flightDate: bookingData.date,
+      flightTime,
+      flightClass: 'Ekonomi',
+      totalPrice: Math.round(finalTotal),
+      contactEmail: bookingData.contactInfo?.email || '',
+      contactPhone: bookingData.contactInfo?.phone || '',
+      extraServices: {
+        baggage: bookingData.extraServices?.baggagePrice || 0,
+        meal: bookingData.extraServices?.meal || 'none',
+        insurance: bookingData.extraServices?.insurance || false,
+        priorityBoarding: bookingData.extraServices?.priorityBoarding || false,
+      },
+      paymentMethod: 'credit_card',
+      paymentCardLast4: cardNumber.slice(-4),
+      passengers: bookingData.passengers.map((p: any, i: number) => ({
+        first_name: p.firstName,
+        last_name: p.lastName,
+        tc_no: p.tcNo,
+        birth_date: p.birthDate,
+        gender: p.gender,
+        seat_number: bookingData.seats?.[i]?.seatId || '-',
+        passenger_type: p.type === 'child' ? 'Çocuk' : p.type === 'infant' ? 'Bebek' : 'Yetişkin',
+      })),
+    });
 
-      // Rezervasyon verisini sessionStorage'a kaydet
-      sessionStorage.setItem('completedBooking', JSON.stringify(reservationData));
+    if (error || !pnr) {
+      setIsProcessing(false);
+      setPaymentError(error || 'Rezervasyon oluşturulurken bir hata oluştu.');
+      return;
+    }
 
-      // Rezervasyon onay sayfasına yönlendir
-      navigate(`/rezervasyon-onay/${pnr}`);
-    }, 2500);
+    // Store booking details in sessionStorage for the confirmation page
+    const reservationData = {
+      pnr,
+      flight: {
+        from: bookingData.from,
+        to: bookingData.to,
+        fromCode: cityCodeMap[bookingData.from] || bookingData.from?.substring(0, 3).toUpperCase(),
+        toCode: cityCodeMap[bookingData.to] || bookingData.to?.substring(0, 3).toUpperCase(),
+        date: bookingData.date,
+        time: flightTime,
+        flightNumber,
+        duration: '2s 15dk',
+        airline: 'Bey Airlines'
+      },
+      passengers: bookingData.passengers.map((p: any, i: number) => ({
+        firstName: p.firstName,
+        lastName: p.lastName,
+        tcNo: p.tcNo,
+        birthDate: p.birthDate,
+        gender: p.gender,
+        seatNumber: bookingData.seats?.[i]?.seatId || '-'
+      })),
+      contact: bookingData.contactInfo,
+      extras: {
+        baggage: bookingData.extraServices?.baggagePrice || 0,
+        meal: bookingData.extraServices?.meal || 'none',
+        insurance: bookingData.extraServices?.insurance || false,
+        priority: bookingData.extraServices?.priorityBoarding || false
+      },
+      payment: {
+        subtotal: flightTotal,
+        seatFee: seatTotal,
+        baggageFee: baggageTotal,
+        mealFee: mealTotal,
+        insuranceFee: insuranceTotal,
+        priorityFee: priorityTotal,
+        tax: Math.round(tax),
+        serviceFee: serviceFee,
+        total: Math.round(finalTotal)
+      },
+      bookingDate: new Date().toISOString()
+    };
+
+    sessionStorage.setItem('completedBooking', JSON.stringify(reservationData));
+    navigate(`/rezervasyon-onay/${pnr}`);
   };
 
   const installmentOptions = [
@@ -210,47 +236,47 @@ const PaymentPage = () => {
         <div className="bg-white border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3 opacity-50">
-                <div className="w-10 h-10 rounded-full bg-green-600 text-white flex items-center justify-center font-semibold">
+              <div className="flex items-center space-x-1 sm:space-x-3 opacity-50">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-green-600 text-white flex items-center justify-center font-semibold">
                   <i className="ri-check-line text-lg"></i>
                 </div>
-                <div>
+                <div className="hidden sm:block">
                   <div className="text-sm font-semibold text-gray-500">Yolcu Bilgileri</div>
                   <div className="text-xs text-gray-400">Tamamlandı</div>
                 </div>
               </div>
-              
-              <div className="flex-1 h-0.5 bg-green-600 mx-4"></div>
-              
-              <div className="flex items-center space-x-3 opacity-50">
-                <div className="w-10 h-10 rounded-full bg-green-600 text-white flex items-center justify-center font-semibold">
+
+              <div className="flex-1 h-0.5 bg-green-600 mx-1 sm:mx-4"></div>
+
+              <div className="flex items-center space-x-1 sm:space-x-3 opacity-50">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-green-600 text-white flex items-center justify-center font-semibold">
                   <i className="ri-check-line text-lg"></i>
                 </div>
-                <div>
+                <div className="hidden sm:block">
                   <div className="text-sm font-semibold text-gray-500">Koltuk Seçimi</div>
                   <div className="text-xs text-gray-400">Tamamlandı</div>
                 </div>
               </div>
-              
-              <div className="flex-1 h-0.5 bg-green-600 mx-4"></div>
-              
-              <div className="flex items-center space-x-3 opacity-50">
-                <div className="w-10 h-10 rounded-full bg-green-600 text-white flex items-center justify-center font-semibold">
+
+              <div className="flex-1 h-0.5 bg-green-600 mx-1 sm:mx-4"></div>
+
+              <div className="flex items-center space-x-1 sm:space-x-3 opacity-50">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-green-600 text-white flex items-center justify-center font-semibold">
                   <i className="ri-check-line text-lg"></i>
                 </div>
-                <div>
+                <div className="hidden sm:block">
                   <div className="text-sm font-semibold text-gray-500">Ek Hizmetler</div>
                   <div className="text-xs text-gray-400">Tamamlandı</div>
                 </div>
               </div>
-              
-              <div className="flex-1 h-0.5 bg-green-600 mx-4"></div>
-              
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center font-semibold">
+
+              <div className="flex-1 h-0.5 bg-green-600 mx-1 sm:mx-4"></div>
+
+              <div className="flex items-center space-x-1 sm:space-x-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-red-600 text-white flex items-center justify-center font-semibold">
                   4
                 </div>
-                <div>
+                <div className="hidden sm:block">
                   <div className="text-sm font-semibold text-red-600">Ödeme</div>
                   <div className="text-xs text-gray-500">Ödeme ve onay</div>
                 </div>
@@ -264,7 +290,7 @@ const PaymentPage = () => {
             {/* Sol Taraf - Ödeme Formu */}
             <div className="lg:col-span-2 space-y-6">
               {/* Kart Bilgileri */}
-              <div className="bg-white rounded-2xl shadow-lg p-6">
+              <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-6">Kart Bilgileri</h2>
                 
                 <div className="space-y-4">
@@ -344,7 +370,7 @@ const PaymentPage = () => {
               </div>
 
               {/* Taksit Seçenekleri */}
-              <div className="bg-white rounded-2xl shadow-lg p-6">
+              <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
                 <h3 className="text-lg font-bold text-gray-900 mb-4">Taksit Seçenekleri</h3>
                 
                 <div className="space-y-2">
@@ -403,7 +429,7 @@ const PaymentPage = () => {
 
             {/* Sağ Taraf - Sipariş Özeti */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-24 space-y-6">
+              <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 sticky top-24 space-y-6">
                 <h3 className="text-lg font-bold text-gray-900">Sipariş Özeti</h3>
                 
                 {/* Uçuş Bilgisi */}
@@ -511,6 +537,13 @@ const PaymentPage = () => {
                     </div>
                   )}
                 </div>
+
+                {paymentError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-2">
+                    <i className="ri-error-warning-line text-lg"></i>
+                    <span className="text-sm">{paymentError}</span>
+                  </div>
+                )}
 
                 {/* Ödeme Butonu */}
                 <button

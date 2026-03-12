@@ -4,6 +4,7 @@ import {
   DatePicker,
   PassengerSelector,
   useSearchForm,
+  getAvailableDestinations,
 } from '../../../components/feature/SearchForm';
 
 export default function HeroSection() {
@@ -32,12 +33,12 @@ export default function HeroSection() {
       {/* Hero Text */}
       <div className="relative z-10 text-center px-4">
         <p className="text-red-300 text-xs font-semibold uppercase tracking-[0.3em] mb-4 [text-shadow:_0_1px_8px_rgba(0,0,0,0.7)]">Türkiye'nin Gururu</p>
-        <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-5 leading-tight [text-shadow:_0_2px_16px_rgba(0,0,0,0.8)]">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-5 leading-tight [text-shadow:_0_2px_16px_rgba(0,0,0,0.8)]">
           Hayalinizdeki Destinasyona <br />
           <span className="text-red-400">Bey Airlines</span> ile Uçun
         </h1>
         <p className="text-base text-white/80 font-light tracking-wider [text-shadow:_0_1px_8px_rgba(0,0,0,0.7)]">
-          İstanbul · Ankara · İzmir · Dubai — Normal ve VIP uçuş seçenekleriyle
+          İstanbul · Ankara · İzmir ⇄ Dubai — Normal ve VIP uçuş seçenekleriyle
         </p>
       </div>
 
@@ -57,7 +58,7 @@ export default function HeroSection() {
                     <button
                       key={t}
                       onClick={() => setTripType(t)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${
+                      className={`px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${
                         tripType === t
                           ? 'bg-white/20 text-white border border-white/20'
                           : 'text-white/50 hover:text-white/80 border border-transparent'
@@ -71,7 +72,7 @@ export default function HeroSection() {
               <div className="flex rounded-lg p-0.5 gap-1">
                 <button
                   onClick={() => setFlightClass('normal')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${
+                  className={`px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${
                     flightClass === 'normal'
                       ? 'bg-white/20 text-white border border-white/20'
                       : 'text-white/50 hover:text-white/80 border border-transparent'
@@ -81,7 +82,7 @@ export default function HeroSection() {
                 </button>
                 <button
                   onClick={() => setFlightClass('vip')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                  className={`px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
                     flightClass === 'vip'
                       ? 'bg-amber-500/20 text-amber-400 border border-amber-400/30'
                       : 'text-white/50 hover:text-white/80 border border-transparent'
@@ -118,6 +119,7 @@ export default function HeroSection() {
                     icon="ri-flight-land-line"
                     value={formData.to}
                     onChange={(v) => setFormData({ ...formData, to: v })}
+                    cities={getAvailableDestinations(formData.from)}
                   />
                 </div>
               </div>

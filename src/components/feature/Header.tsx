@@ -1,33 +1,10 @@
 import { Link } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function Header() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userName, setUserName] = useState('');
-
-  useEffect(() => {
-    const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
-    const name = localStorage.getItem('userName') || '';
-
-    setIsLoggedIn(loggedIn);
-    setUserName(name);
-
-    const handleStorageChange = () => {
-      const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
-      const name = localStorage.getItem('userName') || '';
-
-      setIsLoggedIn(loggedIn);
-      setUserName(name);
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('userDataUpdated', handleStorageChange);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('userDataUpdated', handleStorageChange);
-    };
-  }, []);
+  const { user, profile } = useAuth();
+  const isLoggedIn = !!user;
+  const displayName = profile?.first_name || '';
 
   return (
     <header className="bg-white/95 backdrop-blur-md shadow-[0_1px_3px_rgba(0,0,0,0.05)] sticky top-0 z-50">
@@ -68,15 +45,15 @@ export default function Header() {
             {isLoggedIn ? (
               <Link
                 to="/hesabim"
-                className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-full font-medium transition-all shadow-md hover:shadow-lg cursor-pointer"
+                className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-3 sm:px-5 py-2.5 rounded-full font-medium transition-all shadow-md hover:shadow-lg cursor-pointer"
               >
                 <i className="ri-user-line"></i>
-                <span className="whitespace-nowrap text-sm">{userName.split(' ')[0]}</span>
+                <span className="hidden sm:inline whitespace-nowrap text-sm">{displayName}</span>
               </Link>
             ) : (
               <Link
                 to="/hesabim"
-                className="bg-primary hover:bg-primary-dark text-white px-6 py-2.5 rounded-full text-sm font-medium transition-all shadow-md hover:shadow-lg whitespace-nowrap cursor-pointer"
+                className="bg-primary hover:bg-primary-dark text-white px-3 sm:px-5 py-2.5 rounded-full text-sm font-medium transition-all shadow-md hover:shadow-lg whitespace-nowrap cursor-pointer"
               >
                 <i className="ri-user-line mr-2"></i>
                 Giriş Yap

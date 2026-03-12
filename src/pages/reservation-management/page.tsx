@@ -1,19 +1,20 @@
 import { useState } from 'react';
 import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
-import { reservations } from '../../mocks/reservations';
+import { supabase } from '../../lib/supabase';
 
 export default function ReservationManagementPage() {
   const [pnr, setPnr] = useState('');
   const [surname, setSurname] = useState('');
   const [searchResult, setSearchResult] = useState<any>(null);
   const [error, setError] = useState('');
+  const [searching, setSearching] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showChangeModal, setShowChangeModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSearchResult(null);
@@ -23,15 +24,51 @@ export default function ReservationManagementPage() {
       return;
     }
 
-    const found = reservations.find(
-      (r) => r.pnr.toUpperCase() === pnr.toUpperCase() && r.surname.toUpperCase() === surname.toUpperCase()
+    setSearching(true);
+
+    const { data, error: fetchError } = await supabase
+      .from('reservations')
+      .select('*, passengers(*)')
+      .eq('pnr', pnr.toUpperCase())
+      .single();
+
+    setSearching(false);
+
+    if (fetchError || !data) {
+      setError('Rezervasyon bulunamadı. Lütfen bilgilerinizi kontrol ediniz.');
+      return;
+    }
+
+    // Check if any passenger surname matches
+    const passengerMatch = data.passengers?.some(
+      (p: any) => p.last_name?.toUpperCase() === surname.toUpperCase()
     );
 
-    if (found) {
-      setSearchResult(found);
-    } else {
+    if (!passengerMatch) {
       setError('Rezervasyon bulunamadı. Lütfen bilgilerinizi kontrol ediniz.');
+      return;
     }
+
+    // Map Supabase data to the shape the UI expects
+    const routeParts = data.route?.split('→').map((s: string) => s.trim()) || ['', ''];
+    setSearchResult({
+      pnr: data.pnr,
+      surname: surname.toUpperCase(),
+      flightNumber: data.flight_number,
+      date: data.flight_date,
+      time: data.flight_time,
+      from: routeParts[0],
+      to: routeParts[1],
+      class: data.flight_class,
+      status: data.status,
+      baggage: data.flight_class === 'VIP' ? '30 kg' : '20 kg',
+      totalPrice: `${data.total_price?.toLocaleString('tr-TR')} TL`,
+      passengers: data.passengers?.map((p: any) => ({
+        name: `${p.first_name} ${p.last_name}`,
+        type: p.passenger_type || 'Yetişkin',
+        seat: p.seat_number || '-',
+      })) || [],
+    });
   };
 
   const handleCancel = () => {
@@ -112,10 +149,14 @@ export default function ReservationManagementPage() {
 
               <button
                 type="submit"
-                className="w-full h-14 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-colors text-lg whitespace-nowrap cursor-pointer shadow-lg shadow-red-100"
+                disabled={searching}
+                className="w-full h-14 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-colors text-lg whitespace-nowrap cursor-pointer shadow-lg shadow-red-100 disabled:opacity-50"
               >
-                <i className="ri-search-line mr-2"></i>
-                Rezervasyon Sorgula
+                {searching ? (
+                  <><i className="ri-loader-4-line animate-spin mr-2"></i>Sorgulanıyor...</>
+                ) : (
+                  <><i className="ri-search-line mr-2"></i>Rezervasyon Sorgula</>
+                )}
               </button>
             </form>
 

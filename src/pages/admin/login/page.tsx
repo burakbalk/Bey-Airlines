@@ -1,41 +1,60 @@
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../../contexts/AuthContext';
 
 export default function AdminLoginPage() {
   const navigate = useNavigate();
+  const { signIn, profile, user, loading: authLoading } = useAuth();
   const [formData, setFormData] = useState({
-    username: '',
+    email: '',
     password: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: FormEvent) => {
+  // If already logged in as admin, redirect
+  useEffect(() => {
+    if (!authLoading && user && profile?.role === 'admin') {
+      navigate('/admin/dashboard');
+    }
+  }, [authLoading, user, profile, navigate]);
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    // Demo credentials
-    if (formData.username === 'admin' && formData.password === 'admin123') {
-      localStorage.setItem('adminToken', 'admin-authenticated');
-      localStorage.setItem('adminUser', JSON.stringify({
-        username: 'admin',
-        name: 'Admin Kullanıcı',
-        role: 'admin'
-      }));
-      setTimeout(() => {
-        navigate('/admin/dashboard');
-      }, 500);
-    } else {
+    const { error: signInError } = await signIn(formData.email, formData.password);
+
+    if (signInError) {
       setLoading(false);
-      setError('Kullanıcı adı veya şifre hatalı!');
+      setError(signInError);
+      return;
     }
+
+    // Wait briefly for profile to load, then check role
+    // We use a small delay because profile fetching is async after signIn
+    setTimeout(() => {
+      // Profile will be checked via the useEffect below
+    }, 500);
   };
+
+  // Watch for profile changes after successful sign in
+  useEffect(() => {
+    if (loading && user && profile) {
+      if (profile.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        setLoading(false);
+        setError('Bu hesap admin değil');
+      }
+    }
+  }, [loading, user, profile, navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-600 via-red-500 to-red-700 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/20"></div>
-      
+
       <div className="relative z-10 w-full max-w-md">
         {/* Logo & Title */}
         <div className="text-center mb-8">
@@ -49,7 +68,7 @@ export default function AdminLoginPage() {
         {/* Login Card */}
         <div className="bg-white rounded-2xl shadow-2xl p-8 border border-gray-100">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Giriş Yapın</h2>
-          
+
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
               <i className="ri-error-warning-line text-xl text-red-600 mt-0.5"></i>
@@ -63,19 +82,19 @@ export default function AdminLoginPage() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Kullanıcı Adı
+                E-posta Adresi
               </label>
               <div className="relative">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center">
-                  <i className="ri-user-line text-lg text-gray-400"></i>
+                  <i className="ri-mail-line text-lg text-gray-400"></i>
                 </div>
                 <input
-                  type="text"
+                  type="email"
                   required
-                  value={formData.username}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm"
-                  placeholder="Kullanıcı adınızı girin"
+                  placeholder="admin@beyairlines.com"
                 />
               </div>
             </div>
@@ -117,19 +136,6 @@ export default function AdminLoginPage() {
               )}
             </button>
           </form>
-
-          {/* Demo Info */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
-            <p className="text-xs text-gray-600 mb-2 font-semibold">Demo Giriş Bilgileri:</p>
-            <div className="space-y-1">
-              <p className="text-xs text-gray-700">
-                <span className="font-medium">Kullanıcı Adı:</span> admin
-              </p>
-              <p className="text-xs text-gray-700">
-                <span className="font-medium">Şifre:</span> admin123
-              </p>
-            </div>
-          </div>
         </div>
 
         {/* Back to Site */}

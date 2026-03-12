@@ -18,6 +18,8 @@ const SeatSelectionPage = lazy(() => import('../pages/seat-selection/page'));
 const ExtraServicesPage = lazy(() => import('../pages/extra-services/page'));
 const PaymentPage = lazy(() => import('../pages/payment/page'));
 const ReservationConfirmationPage = lazy(() => import('../pages/reservation-confirmation/page'));
+const GirisPage = lazy(() => import('../pages/giris/page'));
+const KayitPage = lazy(() => import('../pages/kayit/page'));
 const AdminLoginPage = lazy(() => import('../pages/admin/login/page'));
 const AdminDashboardPage = lazy(() => import('../pages/admin/dashboard/page'));
 const AdminReportsPage = lazy(() => import('../pages/admin/raporlar/page'));
@@ -100,6 +102,14 @@ const routes: RouteObject[] = [
   {
     path: '/rezervasyon-onay/:pnr',
     element: <ReservationConfirmationPage />,
+  },
+  {
+    path: '/giris',
+    element: <GirisPage />,
+  },
+  {
+    path: '/kayit',
+    element: <KayitPage />,
   },
   {
     path: '/admin/login',

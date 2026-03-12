@@ -1,64 +1,10 @@
 export const popularDestinations = [
   {
     id: 1,
-    city: 'Ankara',
-    country: 'Türkiye',
-    image: '/images/destinations/ankara-card.webp',
-    price: 749,
-    description: 'Türkiye\'nin başkenti Ankara, tarihi ve modern mimarinin buluştuğu, kültürel zenginlikleriyle dolu bir şehir. Anıtkabir, Ankara Kalesi ve müzeleriyle ziyaretçilerine unutulmaz anlar yaşatıyor.',
-    heroImage: '/images/destinations/ankara-hero.webp',
-    weather: { temp: '18°C', condition: 'Güneşli', humidity: '45%' },
-    highlights: [
-      { icon: 'ri-building-line', title: 'Anıtkabir', description: 'Atatürk\'ün anıt mezarı ve müzesi' },
-      { icon: 'ri-ancient-gate-line', title: 'Ankara Kalesi', description: 'Tarihi kale ve panoramik şehir manzarası' },
-      { icon: 'ri-bank-line', title: 'Müzeler', description: 'Anadolu Medeniyetleri ve Etnografya Müzesi' },
-      { icon: 'ri-restaurant-line', title: 'Gastronomi', description: 'Ankara tava, döner ve yerel lezzetler' }
-    ],
-    gallery: [
-      '/images/destinations/ankara-gallery-1.webp',
-      '/images/destinations/ankara-gallery-2.webp',
-      '/images/destinations/ankara-gallery-3.webp',
-      '/images/destinations/ankara-gallery-4.webp'
-    ],
-    popularFlights: [
-      { from: 'İstanbul', duration: '1s 10dk', date: '15 Haz - 22 Haz', price: 749 },
-      { from: 'İzmir', duration: '1s 25dk', date: '18 Haz - 25 Haz', price: 899 },
-      { from: 'Antalya', duration: '1s 15dk', date: '20 Haz - 27 Haz', price: 849 }
-    ]
-  },
-  {
-    id: 2,
-    city: 'İzmir',
-    country: 'Türkiye',
-    image: '/images/destinations/izmir-card.webp',
-    price: 799,
-    description: 'Ege\'nin incisi İzmir, muhteşem sahil şeridi, tarihi dokusu ve canlı kültürel yaşamıyla Türkiye\'nin en güzel şehirlerinden biri. Kordon, Kemeraltı ve Efes antik kenti ile ziyaretçilerini büyülüyor.',
-    heroImage: '/images/destinations/izmir-hero.webp',
-    weather: { temp: '24°C', condition: 'Açık', humidity: '60%' },
-    highlights: [
-      { icon: 'ri-ship-line', title: 'Kordon', description: 'Sahil şeridi ve yürüyüş yolu' },
-      { icon: 'ri-ancient-pavilion-line', title: 'Efes Antik Kenti', description: 'Dünya mirası antik şehir' },
-      { icon: 'ri-shopping-bag-line', title: 'Kemeraltı Çarşısı', description: 'Tarihi pazar ve alışveriş merkezi' },
-      { icon: 'ri-goblet-line', title: 'Ege Mutfağı', description: 'Deniz ürünleri ve zeytinyağlı yemekler' }
-    ],
-    gallery: [
-      '/images/destinations/izmir-gallery-1.webp',
-      '/images/destinations/izmir-gallery-2.webp',
-      '/images/destinations/izmir-gallery-3.webp',
-      '/images/destinations/izmir-gallery-4.webp'
-    ],
-    popularFlights: [
-      { from: 'İstanbul', duration: '1s 15dk', date: '12 Haz - 19 Haz', price: 799 },
-      { from: 'Ankara', duration: '1s 25dk', date: '14 Haz - 21 Haz', price: 899 },
-      { from: 'Antalya', duration: '1s 5dk', date: '16 Haz - 23 Haz', price: 749 }
-    ]
-  },
-  {
-    id: 3,
     city: 'Dubai',
     country: 'BAE',
     image: '/images/destinations/dubai-card.webp',
-    price: 3499,
+    price: 3299,
     description: 'Dünyanın en görkemli şehirlerinden Dubai, modern mimarisi, lüks alışveriş merkezleri ve çöl safarileriyle benzersiz bir deneyim sunuyor. Burj Khalifa, Dubai Mall ve Palm Jumeirah ile hayallerinizi gerçeğe dönüştürün.',
     heroImage: '/images/destinations/dubai-hero.webp',
     weather: { temp: '32°C', condition: 'Güneşli', humidity: '55%' },
@@ -75,17 +21,17 @@ export const popularDestinations = [
       '/images/destinations/dubai-gallery-4.webp'
     ],
     popularFlights: [
-      { from: 'İstanbul', duration: '4s 30dk', date: '10 Haz - 17 Haz', price: 3499 },
+      { from: 'İstanbul', duration: '4s 30dk', date: '10 Haz - 17 Haz', price: 3299 },
       { from: 'Ankara', duration: '4s 45dk', date: '13 Haz - 20 Haz', price: 3699 },
       { from: 'İzmir', duration: '4s 40dk', date: '15 Haz - 22 Haz', price: 3599 }
     ]
   },
   {
-    id: 4,
+    id: 2,
     city: 'İstanbul',
     country: 'Türkiye',
     image: '/images/destinations/istanbul-card.webp',
-    price: 599,
+    price: 3499,
     description: 'İki kıtayı birleştiren eşsiz şehir İstanbul, tarihi yarımadası, Boğaz manzarası ve zengin kültürel mirası ile dünyanın en çok ziyaret edilen şehirlerinden biri. Ayasofya, Topkapı Sarayı ve Kapalıçarşı ile zamanda yolculuk yapın.',
     heroImage: '/images/destinations/istanbul-hero.webp',
     weather: { temp: '21°C', condition: 'Parçalı Bulutlu', humidity: '65%' },
@@ -102,9 +48,57 @@ export const popularDestinations = [
       '/images/destinations/istanbul-gallery-4.webp'
     ],
     popularFlights: [
-      { from: 'Ankara', duration: '1s 10dk', date: '08 Haz - 15 Haz', price: 599 },
-      { from: 'İzmir', duration: '1s 15dk', date: '11 Haz - 18 Haz', price: 649 },
-      { from: 'Antalya', duration: '1s 20dk', date: '13 Haz - 20 Haz', price: 699 }
+      { from: 'Dubai', duration: '4s 30dk', date: '08 Haz - 15 Haz', price: 3499 }
+    ]
+  },
+  {
+    id: 3,
+    city: 'Ankara',
+    country: 'Türkiye',
+    image: '/images/destinations/ankara-card.webp',
+    price: 3699,
+    description: 'Türkiye\'nin başkenti Ankara, tarihi ve modern mimarinin buluştuğu, kültürel zenginlikleriyle dolu bir şehir. Anıtkabir, Ankara Kalesi ve müzeleriyle ziyaretçilerine unutulmaz anlar yaşatıyor.',
+    heroImage: '/images/destinations/ankara-hero.webp',
+    weather: { temp: '18°C', condition: 'Güneşli', humidity: '45%' },
+    highlights: [
+      { icon: 'ri-building-line', title: 'Anıtkabir', description: 'Atatürk\'ün anıt mezarı ve müzesi' },
+      { icon: 'ri-ancient-gate-line', title: 'Ankara Kalesi', description: 'Tarihi kale ve panoramik şehir manzarası' },
+      { icon: 'ri-bank-line', title: 'Müzeler', description: 'Anadolu Medeniyetleri ve Etnografya Müzesi' },
+      { icon: 'ri-restaurant-line', title: 'Gastronomi', description: 'Ankara tava, döner ve yerel lezzetler' }
+    ],
+    gallery: [
+      '/images/destinations/ankara-gallery-1.webp',
+      '/images/destinations/ankara-gallery-2.webp',
+      '/images/destinations/ankara-gallery-3.webp',
+      '/images/destinations/ankara-gallery-4.webp'
+    ],
+    popularFlights: [
+      { from: 'Dubai', duration: '4s 45dk', date: '18 Haz - 25 Haz', price: 3699 }
+    ]
+  },
+  {
+    id: 4,
+    city: 'İzmir',
+    country: 'Türkiye',
+    image: '/images/destinations/izmir-card.webp',
+    price: 3599,
+    description: 'Ege\'nin incisi İzmir, muhteşem sahil şeridi, tarihi dokusu ve canlı kültürel yaşamıyla Türkiye\'nin en güzel şehirlerinden biri. Kordon, Kemeraltı ve Efes antik kenti ile ziyaretçilerini büyülüyor.',
+    heroImage: '/images/destinations/izmir-hero.webp',
+    weather: { temp: '24°C', condition: 'Açık', humidity: '60%' },
+    highlights: [
+      { icon: 'ri-ship-line', title: 'Kordon', description: 'Sahil şeridi ve yürüyüş yolu' },
+      { icon: 'ri-ancient-pavilion-line', title: 'Efes Antik Kenti', description: 'Dünya mirası antik şehir' },
+      { icon: 'ri-shopping-bag-line', title: 'Kemeraltı Çarşısı', description: 'Tarihi pazar ve alışveriş merkezi' },
+      { icon: 'ri-goblet-line', title: 'Ege Mutfağı', description: 'Deniz ürünleri ve zeytinyağlı yemekler' }
+    ],
+    gallery: [
+      '/images/destinations/izmir-gallery-1.webp',
+      '/images/destinations/izmir-gallery-2.webp',
+      '/images/destinations/izmir-gallery-3.webp',
+      '/images/destinations/izmir-gallery-4.webp'
+    ],
+    popularFlights: [
+      { from: 'Dubai', duration: '4s 40dk', date: '12 Haz - 19 Haz', price: 3599 }
     ]
   },
 ];

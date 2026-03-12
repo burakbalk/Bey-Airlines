@@ -1,7 +1,19 @@
 import { Link } from 'react-router-dom';
-import { popularDestinations } from '../../../mocks/destinations';
+import { useDestinations } from '../../../hooks/useDestinations';
 
 export default function PopularDestinations() {
+  const { destinations, loading } = useDestinations();
+
+  if (loading) {
+    return (
+      <section className="bg-bg-alt py-24 lg:py-32">
+        <div className="max-w-7xl mx-auto px-8 text-center">
+          <i className="ri-loader-4-line text-4xl text-red-600 animate-spin"></i>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="bg-bg-alt py-24 lg:py-32">
       <div className="max-w-7xl mx-auto px-8">
@@ -11,7 +23,7 @@ export default function PopularDestinations() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {popularDestinations.map((destination) => (
+          {destinations.map((destination) => (
             <Link
               key={destination.id}
               to={`/destinasyonlar/${destination.id}`}
