@@ -1,125 +1,153 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AdminLayout from '../../../components/admin/AdminLayout';
 import AdminGuard from '../../../components/admin/AdminGuard';
+import { supabase } from '../../../lib/supabase';
 
-interface Customer {
+interface Profile {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+  birth_date: string | null;
+  role: string | null;
+  created_at: string;
+}
+
+interface CustomerDisplay {
   id: string;
   name: string;
   email: string;
   phone: string;
   registrationDate: string;
-  totalFlights: number;
-  status: 'Aktif' | 'Askıda';
-  reservations: Array<{
-    pnr: string;
-    route: string;
-    date: string;
-    amount: string;
-    status: string;
-  }>;
+  totalReservations: number;
+  role: string;
 }
 
-const mockCustomers: Customer[] = [
-  {
-    id: '1',
-    name: 'Ahmet Yılmaz',
-    email: 'ahmet.yilmaz@email.com',
-    phone: '+90 532 123 4567',
-    registrationDate: '15 Ocak 2024',
-    totalFlights: 12,
-    status: 'Aktif',
-    reservations: [
-      { pnr: 'BEY123', route: 'İstanbul → Dubai', date: '15 Mayıs 2025', amount: '12.500 TL', status: 'Onaylandı' },
-      { pnr: 'BEY098', route: 'Dubai → Ankara', date: '10 Nisan 2025', amount: '3.699 TL', status: 'Tamamlandı' },
-    ],
-  },
-  {
-    id: '2',
-    name: 'Mehmet Kaya',
-    email: 'mehmet.kaya@email.com',
-    phone: '+90 533 987 6543',
-    registrationDate: '20 Şubat 2024',
-    totalFlights: 8,
-    status: 'Aktif',
-    reservations: [
-      { pnr: 'BEY456', route: 'Ankara → Dubai', date: '20 Mayıs 2025', amount: '3.699 TL', status: 'Beklemede' },
-    ],
-  },
-  {
-    id: '3',
-    name: 'Zeynep Demir',
-    email: 'zeynep.demir@email.com',
-    phone: '+90 534 555 4444',
-    registrationDate: '5 Mart 2024',
-    totalFlights: 15,
-    status: 'Aktif',
-    reservations: [
-      { pnr: 'BEY789', route: 'Dubai → İzmir', date: '25 Mayıs 2025', amount: '5.400 TL', status: 'Onaylandı' },
-    ],
-  },
-  {
-    id: '4',
-    name: 'Ali Özkan',
-    email: 'ali.ozkan@email.com',
-    phone: '+90 535 111 2222',
-    registrationDate: '12 Nisan 2024',
-    totalFlights: 5,
-    status: 'Askıda',
-    reservations: [
-      { pnr: 'BEY321', route: 'İstanbul → Dubai', date: '28 Mayıs 2025', amount: '8.750 TL', status: 'İptal' },
-    ],
-  },
-  {
-    id: '5',
-    name: 'Fatma Şahin',
-    email: 'fatma.sahin@email.com',
-    phone: '+90 536 777 8888',
-    registrationDate: '8 Mayıs 2024',
-    totalFlights: 6,
-    status: 'Aktif',
-    reservations: [
-      { pnr: 'BEY654', route: 'Dubai → İstanbul', date: '30 Mayıs 2025', amount: '3.499 TL', status: 'Onaylandı' },
-    ],
-  },
-];
-
 export default function AdminCustomersPage() {
-  const [customers, setCustomers] = useState<Customer[]>(mockCustomers);
+  const [customers, setCustomers] = useState<CustomerDisplay[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'Tümü' | 'Aktif' | 'Askıda'>('Tümü');
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [roleFilter, setRoleFilter] = useState<'Tümü' | 'user' | 'admin'>('Tümü');
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerDisplay | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<{ type: 'suspend' | 'activate'; id: string } | null>(null);
+  const [customerReservations, setCustomerReservations] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
+  const fetchCustomers = async () => {
+    setLoading(true);
+
+    // Fetch profiles
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!profiles) {
+      setLoading(false);
+      return;
+    }
+
+    // Fetch reservation counts per user
+    const { data: reservationCounts } = await supabase
+      .from('reservations')
+      .select('user_id');
+
+    const countMap: Record<string, number> = {};
+    if (reservationCounts) {
+      reservationCounts.forEach((r: any) => {
+        if (r.user_id) {
+          countMap[r.user_id] = (countMap[r.user_id] || 0) + 1;
+        }
+      });
+    }
+
+    // Fetch auth emails via profiles join - we'll use the profile id to match
+    // Since we can't directly query auth.users, we'll show name from profile
+    const customerList: CustomerDisplay[] = profiles.map((p: Profile) => ({
+      id: p.id,
+      name: [p.first_name, p.last_name].filter(Boolean).join(' ') || 'İsimsiz Kullanıcı',
+      email: p.id, // Will be replaced if we can get email
+      phone: p.phone || '-',
+      registrationDate: new Date(p.created_at).toLocaleDateString('tr-TR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      }),
+      totalReservations: countMap[p.id] || 0,
+      role: p.role || 'user',
+    }));
+
+    // Try to get emails from reservations contact_email
+    const { data: emailData } = await supabase
+      .from('reservations')
+      .select('user_id, contact_email')
+      .not('user_id', 'is', null);
+
+    const emailMap: Record<string, string> = {};
+    if (emailData) {
+      emailData.forEach((r: any) => {
+        if (r.user_id && r.contact_email) {
+          emailMap[r.user_id] = r.contact_email;
+        }
+      });
+    }
+
+    customerList.forEach(c => {
+      if (emailMap[c.id]) {
+        c.email = emailMap[c.id];
+      } else {
+        c.email = '-';
+      }
+    });
+
+    setCustomers(customerList);
+    setLoading(false);
+  };
 
   const filteredCustomers = customers.filter((customer) => {
     const matchesSearch =
       customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       customer.phone.includes(searchQuery);
-    const matchesStatus = statusFilter === 'Tümü' || customer.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesRole = roleFilter === 'Tümü' || customer.role === roleFilter;
+    return matchesSearch && matchesRole;
   });
 
-  const handleStatusChange = (id: string, newStatus: 'Aktif' | 'Askıda') => {
-    setCustomers((prev) =>
-      prev.map((customer) => (customer.id === id ? { ...customer, status: newStatus } : customer))
-    );
-    setShowConfirmModal(false);
-    setConfirmAction(null);
-  };
+  const handleViewDetail = async (customer: CustomerDisplay) => {
+    setSelectedCustomer(customer);
+    setShowDetailModal(true);
 
-  const openConfirmModal = (type: 'suspend' | 'activate', id: string) => {
-    setConfirmAction({ type, id });
-    setShowConfirmModal(true);
+    // Fetch reservations for this customer
+    const { data } = await supabase
+      .from('reservations')
+      .select('*')
+      .eq('user_id', customer.id)
+      .order('created_at', { ascending: false });
+
+    setCustomerReservations(data || []);
   };
 
   const stats = {
     total: customers.length,
-    active: customers.filter((c) => c.status === 'Aktif').length,
-    suspended: customers.filter((c) => c.status === 'Askıda').length,
-    totalFlights: customers.reduce((sum, c) => sum + c.totalFlights, 0),
+    users: customers.filter((c) => c.role === 'user').length,
+    admins: customers.filter((c) => c.role === 'admin').length,
+    totalReservations: customers.reduce((sum, c) => sum + c.totalReservations, 0),
   };
+
+  if (loading) {
+    return (
+      <AdminGuard>
+        <AdminLayout>
+          <div className="flex items-center justify-center h-96">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600"></div>
+          </div>
+        </AdminLayout>
+      </AdminGuard>
+    );
+  }
 
   return (
     <AdminGuard>
@@ -137,9 +165,9 @@ export default function AdminCustomersPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {[
               { label: 'Toplam Müşteri', value: stats.total, icon: 'group-line', color: 'bg-blue-100 text-blue-600' },
-              { label: 'Aktif Müşteri', value: stats.active, icon: 'user-smile-line', color: 'bg-green-100 text-green-600' },
-              { label: 'Askıda', value: stats.suspended, icon: 'user-forbid-line', color: 'bg-red-100 text-red-600' },
-              { label: 'Toplam Uçuş', value: stats.totalFlights.toLocaleString('tr-TR'), icon: 'flight-takeoff-line', color: 'bg-amber-100 text-amber-600' },
+              { label: 'Kullanıcılar', value: stats.users, icon: 'user-smile-line', color: 'bg-green-100 text-green-600' },
+              { label: 'Adminler', value: stats.admins, icon: 'shield-user-line', color: 'bg-red-100 text-red-600' },
+              { label: 'Toplam Rezervasyon', value: stats.totalReservations.toLocaleString('tr-TR'), icon: 'flight-takeoff-line', color: 'bg-amber-100 text-amber-600' },
             ].map((stat, idx) => (
               <div key={idx} className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
                 <div className="flex items-center justify-between">
@@ -171,17 +199,17 @@ export default function AdminCustomersPage() {
                 </div>
               </div>
               <div className="flex gap-2">
-                {(['Tümü', 'Aktif', 'Askıda'] as const).map((status) => (
+                {(['Tümü', 'user', 'admin'] as const).map((role) => (
                   <button
-                    key={status}
-                    onClick={() => setStatusFilter(status)}
+                    key={role}
+                    onClick={() => setRoleFilter(role)}
                     className={`px-4 py-3 rounded-xl font-medium text-sm transition-colors whitespace-nowrap cursor-pointer ${
-                      statusFilter === status
+                      roleFilter === role
                         ? 'bg-red-600 text-white shadow-md'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
-                    {status}
+                    {role === 'Tümü' ? 'Tümü' : role === 'user' ? 'Kullanıcı' : 'Admin'}
                   </button>
                 ))}
               </div>
@@ -197,8 +225,8 @@ export default function AdminCustomersPage() {
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Müşteri</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">İletişim</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Kayıt Tarihi</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Toplam Uçuş</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Durum</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Rezervasyon</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">Rol</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase">İşlemler</th>
                   </tr>
                 </thead>
@@ -212,7 +240,7 @@ export default function AdminCustomersPage() {
                           </div>
                           <div>
                             <p className="font-semibold text-gray-900 text-sm">{customer.name}</p>
-                            <p className="text-xs text-gray-500">ID: {customer.id}</p>
+                            <p className="text-xs text-gray-500">ID: {customer.id.slice(0, 8)}...</p>
                           </div>
                         </div>
                       </td>
@@ -226,44 +254,24 @@ export default function AdminCustomersPage() {
                         <span className="text-sm text-gray-700">{customer.registrationDate}</span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm font-semibold text-gray-900">{customer.totalFlights}</span>
+                        <span className="text-sm font-semibold text-gray-900">{customer.totalReservations}</span>
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${
-                          customer.status === 'Aktif' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          customer.role === 'admin' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
                         }`}>
-                          {customer.status}
+                          {customer.role === 'admin' ? 'Admin' : 'Kullanıcı'}
                         </span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => {
-                              setSelectedCustomer(customer);
-                              setShowDetailModal(true);
-                            }}
+                            onClick={() => handleViewDetail(customer)}
                             className="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors cursor-pointer"
                             title="Detaylar"
                           >
                             <i className="ri-eye-line text-sm"></i>
                           </button>
-                          {customer.status === 'Aktif' ? (
-                            <button
-                              onClick={() => openConfirmModal('suspend', customer.id)}
-                              className="w-8 h-8 flex items-center justify-center bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors cursor-pointer"
-                              title="Askıya Al"
-                            >
-                              <i className="ri-forbid-line text-sm"></i>
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => openConfirmModal('activate', customer.id)}
-                              className="w-8 h-8 flex items-center justify-center bg-green-100 hover:bg-green-200 text-green-700 rounded-lg transition-colors cursor-pointer"
-                              title="Aktif Et"
-                            >
-                              <i className="ri-check-line text-sm"></i>
-                            </button>
-                          )}
                         </div>
                       </td>
                     </tr>
@@ -299,8 +307,9 @@ export default function AdminCustomersPage() {
                 <div className="grid grid-cols-4 gap-4">
                   {[
                     { label: 'Kayıt Tarihi', value: selectedCustomer.registrationDate },
-                    { label: 'Toplam Uçuş', value: selectedCustomer.totalFlights },
-                    { label: 'Durum', value: selectedCustomer.status },
+                    { label: 'Toplam Rezervasyon', value: selectedCustomer.totalReservations },
+                    { label: 'Rol', value: selectedCustomer.role === 'admin' ? 'Admin' : 'Kullanıcı' },
+                    { label: 'Telefon', value: selectedCustomer.phone },
                   ].map((item, idx) => (
                     <div key={idx}>
                       <p className="text-red-200 text-xs mb-1">{item.label}</p>
@@ -314,63 +323,32 @@ export default function AdminCustomersPage() {
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 mb-4">Rezervasyon Geçmişi</h3>
                   <div className="space-y-3">
-                    {selectedCustomer.reservations.map((reservation, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                        <div>
-                          <p className="font-semibold text-gray-900">{reservation.route}</p>
-                          <p className="text-sm text-gray-500">PNR: {reservation.pnr} • {reservation.date}</p>
+                    {customerReservations.length > 0 ? (
+                      customerReservations.map((reservation: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                          <div>
+                            <p className="font-semibold text-gray-900">{reservation.route}</p>
+                            <p className="text-sm text-gray-500">PNR: {reservation.pnr} • {reservation.flight_date}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold text-gray-900">₺{Number(reservation.total_price).toLocaleString()}</p>
+                            <span className={`text-xs px-2 py-1 rounded-lg ${
+                              reservation.status === 'Onaylandı' ? 'bg-green-100 text-green-800' :
+                              reservation.status === 'Beklemede' ? 'bg-amber-100 text-amber-800' :
+                              reservation.status === 'Tamamlandı' ? 'bg-blue-100 text-blue-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {reservation.status}
+                            </span>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-gray-900">{reservation.amount}</p>
-                          <span className={`text-xs px-2 py-1 rounded-lg ${
-                            reservation.status === 'Onaylandı' ? 'bg-green-100 text-green-800' :
-                            reservation.status === 'Beklemede' ? 'bg-amber-100 text-amber-800' :
-                            reservation.status === 'Tamamlandı' ? 'bg-blue-100 text-blue-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {reservation.status}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-500">Henüz rezervasyon bulunmuyor.</p>
+                    )}
                   </div>
                 </div>
 
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Confirm Modal */}
-        {showConfirmModal && confirmAction && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowConfirmModal(false)}>
-            <div className="bg-white rounded-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-              <div className="text-center mb-6">
-                <div className={`w-16 h-16 ${confirmAction.type === 'activate' ? 'bg-green-100' : 'bg-red-100'} rounded-full flex items-center justify-center mx-auto mb-4`}>
-                  <i className={`ri-${confirmAction.type === 'activate' ? 'check' : 'forbid'}-line text-3xl ${confirmAction.type === 'activate' ? 'text-green-600' : 'text-red-600'}`}></i>
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  {confirmAction.type === 'activate' ? 'Hesabı Aktif Et' : 'Hesabı Askıya Al'}
-                </h3>
-                <p className="text-gray-600">
-                  {confirmAction.type === 'activate'
-                    ? 'Bu müşteri hesabını aktif etmek istediğinizden emin misiniz?'
-                    : 'Bu müşteri hesabını askıya almak istediğinizden emin misiniz? Müşteri giriş yapamayacak ve rezervasyon oluşturamayacak.'}
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowConfirmModal(false)}
-                  className="flex-1 py-3 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium whitespace-nowrap cursor-pointer"
-                >
-                  Vazgeç
-                </button>
-                <button
-                  onClick={() => handleStatusChange(confirmAction.id, confirmAction.type === 'activate' ? 'Aktif' : 'Askıda')}
-                  className={`flex-1 py-3 ${confirmAction.type === 'activate' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'} text-white rounded-xl transition-colors font-medium whitespace-nowrap cursor-pointer`}
-                >
-                  {confirmAction.type === 'activate' ? 'Aktif Et' : 'Askıya Al'}
-                </button>
               </div>
             </div>
           </div>

@@ -9,12 +9,11 @@ import { supabase } from '../../lib/supabase';
 
 export default function AccountPage() {
   const navigate = useNavigate();
-  const { user, profile: authProfile, loading: authLoading, signIn, signUp, signOut, updateProfile } = useAuth();
+  const { user, profile: authProfile, loading: authLoading, signOut, updateProfile } = useAuth();
   const isLoggedIn = !!user;
   const { reservations, loading: reservationsLoading } = useUserReservations();
   const savedPassengersFromHook = useSavedPassengers();
 
-  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   const [activeSection, setActiveSection] = useState<'profile' | 'reservations' | 'passengers'>('profile');
   const [passengers, setPassengers] = useState<any[]>([]);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
@@ -29,20 +28,6 @@ export default function AccountPage() {
     email: ''
   });
   const [editingPassengerId, setEditingPassengerId] = useState<string | null>(null);
-
-  // Login form state
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
-  const [loginLoading, setLoginLoading] = useState(false);
-  const [registerName, setRegisterName] = useState('');
-  const [registerSurname, setRegisterSurname] = useState('');
-  const [registerEmail, setRegisterEmail] = useState('');
-  const [registerPassword, setRegisterPassword] = useState('');
-  const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState('');
-  const [registerError, setRegisterError] = useState('');
-  const [registerLoading, setRegisterLoading] = useState(false);
-  const [registerSuccess, setRegisterSuccess] = useState(false);
 
   // Profile state
   const [profileForm, setProfileForm] = useState({
@@ -78,45 +63,6 @@ export default function AccountPage() {
       navigate('/giris');
     }
   }, [authLoading, isLoggedIn, navigate]);
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginError('');
-    setLoginLoading(true);
-
-    const { error } = await signIn(loginEmail, loginPassword);
-
-    setLoginLoading(false);
-    if (error) {
-      setLoginError(error);
-    }
-  };
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setRegisterError('');
-
-    if (registerPassword !== registerPasswordConfirm) {
-      setRegisterError('Şifreler eşleşmiyor');
-      return;
-    }
-
-    if (registerPassword.length < 6) {
-      setRegisterError('Şifre en az 6 karakter olmalıdır');
-      return;
-    }
-
-    setRegisterLoading(true);
-
-    const { error } = await signUp(registerEmail, registerPassword, registerName, registerSurname);
-
-    setRegisterLoading(false);
-    if (error) {
-      setRegisterError(error);
-    } else {
-      setRegisterSuccess(true);
-    }
-  };
 
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -717,7 +663,7 @@ export default function AccountPage() {
                   onClick={() => { setShowAddPassengerModal(false); setEditingPassengerId(null); setNewPassenger({ name: '', surname: '', tcNo: '', birthDate: '', phone: '', email: '' }); }}
                   className="flex-1 py-3 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium whitespace-nowrap cursor-pointer"
                 >
-                  Iptal
+                  İptal
                 </button>
                 <button
                   type="submit"
