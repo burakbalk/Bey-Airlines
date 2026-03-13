@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import {
   CityDropdown,
-  DatePicker,
+  WeekPicker,
   PassengerSelector,
   useSearchForm,
   getAvailableDestinations,
@@ -142,20 +142,23 @@ export default function HeroSection() {
 
               {/* Date Group */}
               <div className="flex items-stretch bg-white/[0.07] rounded-2xl border border-white/[0.12] hover:border-white/[0.2] transition-colors">
-                <DatePicker
+                <WeekPicker
                   label="Gidiş"
                   icon="ri-calendar-line"
+                  from={formData.from}
+                  to={formData.to}
                   value={formData.departDate}
                   onChange={(v) => setFormData({ ...formData, departDate: v })}
                 />
                 {tripType === 'round' && (
                   <div className="border-l border-white/[0.08]">
-                    <DatePicker
+                    <WeekPicker
                       label="Dönüş"
                       icon="ri-calendar-check-line"
+                      from={formData.to}
+                      to={formData.from}
                       value={formData.returnDate}
                       onChange={(v) => setFormData({ ...formData, returnDate: v })}
-                      minDate={formData.departDate}
                     />
                   </div>
                 )}

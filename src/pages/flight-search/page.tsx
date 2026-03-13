@@ -9,7 +9,7 @@ import FlightCard from './components/FlightCard';
 import { useFlightsByDate, toFlightCardFormat } from '../../hooks/useFlights';
 import {
   CityDropdown,
-  DatePicker,
+  WeekPicker,
   PassengerSelector,
   useSearchForm,
   getAvailableDestinations,
@@ -155,20 +155,23 @@ export default function FlightSearchPage() {
               </div>
 
               <div className="flex items-stretch bg-white/[0.06] rounded-2xl border border-white/[0.1]">
-                <DatePicker
+                <WeekPicker
                   label="Gidiş"
                   icon="ri-calendar-line"
+                  from={formData.from}
+                  to={formData.to}
                   value={formData.departDate}
                   onChange={(v) => setFormData({ ...formData, departDate: v })}
                 />
                 {tripType === 'round' && (
                   <div className="border-l border-white/[0.08]">
-                    <DatePicker
+                    <WeekPicker
                       label="Dönüş"
                       icon="ri-calendar-check-line"
+                      from={formData.to}
+                      to={formData.from}
                       value={formData.returnDate}
                       onChange={(v) => setFormData({ ...formData, returnDate: v })}
-                      minDate={formData.departDate}
                     />
                   </div>
                 )}

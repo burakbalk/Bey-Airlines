@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
 export interface FlightResult {
@@ -169,6 +169,7 @@ export function useAllFlights() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const mountedRef = useRef(true);
 
   const refresh = useCallback(async (p?: number) => {
     const currentPage = p ?? page;
@@ -181,6 +182,7 @@ export function useAllFlights() {
       .from('flights')
       .select('id', { count: 'exact', head: true })
       .gte('flight_date', today);
+    if (!mountedRef.current) return;
     setTotalCount(count ?? 0);
 
     const from = currentPage * PAGE_SIZE;
@@ -193,6 +195,7 @@ export function useAllFlights() {
       .order('flight_date')
       .order('departure_time')
       .range(from, to);
+    if (!mountedRef.current) return;
     if (fetchError) {
       setError(fetchError.message);
     }
@@ -200,7 +203,11 @@ export function useAllFlights() {
     setLoading(false);
   }, [page]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    mountedRef.current = true;
+    refresh();
+    return () => { mountedRef.current = false; };
+  }, [refresh]);
 
   const goToPage = useCallback((p: number) => {
     setPage(p);
@@ -224,6 +231,7 @@ export function useAircraft() {
   const [aircraft, setAircraft] = useState<Aircraft[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -232,6 +240,7 @@ export function useAircraft() {
       .from('aircraft')
       .select('*')
       .order('id');
+    if (!mountedRef.current) return;
     if (fetchError) {
       console.error('[useAircraft] Supabase hatası:', fetchError.message);
       setError(fetchError.message);
@@ -240,7 +249,11 @@ export function useAircraft() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    mountedRef.current = true;
+    refresh();
+    return () => { mountedRef.current = false; };
+  }, [refresh]);
 
   const add = useCallback(async (entry: { registration: string; model: string; capacity: number; aircraft_type: string }) => {
     const { error } = await supabase.from('aircraft').insert(entry);
@@ -286,6 +299,7 @@ export function useFlightSchedule() {
   const [schedule, setSchedule] = useState<ScheduleEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -294,6 +308,7 @@ export function useFlightSchedule() {
       .from('flight_schedule')
       .select('*, aircraft:aircraft_id(capacity, aircraft_type, registration)')
       .order('flight_code');
+    if (!mountedRef.current) return;
     if (fetchError) {
       console.error('[useFlightSchedule] Supabase hatası:', fetchError.message);
       setError(fetchError.message);
@@ -312,7 +327,11 @@ export function useFlightSchedule() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    mountedRef.current = true;
+    refresh();
+    return () => { mountedRef.current = false; };
+  }, [refresh]);
 
   /** Fiyatı hem flight_schedule'da hem gelecekteki flights'ta günceller */
   const updatePrice = useCallback(async (scheduleId: number, flightCode: string, newPrice: number) => {

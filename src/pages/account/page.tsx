@@ -14,7 +14,7 @@ export default function AccountPage() {
   const { user, profile: authProfile, loading: authLoading, signOut, updateProfile } = useAuth();
   const isLoggedIn = !!user;
   const { reservations, loading: reservationsLoading } = useUserReservations();
-  const savedPassengersFromHook = useSavedPassengers();
+  const { savedPassengers, loading: passengersLoading } = useSavedPassengers();
 
   const [activeSection, setActiveSection] = useState<'profile' | 'reservations' | 'passengers'>('profile');
   const [passengers, setPassengers] = useState<SavedPassenger[]>([]);
@@ -58,8 +58,8 @@ export default function AccountPage() {
 
   // Sync saved passengers from hook
   useEffect(() => {
-    setPassengers(savedPassengersFromHook);
-  }, [savedPassengersFromHook]);
+    setPassengers(savedPassengers);
+  }, [savedPassengers]);
 
   // Redirect to /giris if not logged in and not loading
   useEffect(() => {
@@ -410,6 +410,19 @@ export default function AccountPage() {
                       <i className="ri-add-line mr-2"></i>Yeni Yolcu Ekle
                     </button>
                   </div>
+                  {passengersLoading ? (
+                    <div className="flex justify-center py-12">
+                      <i className="ri-loader-4-line animate-spin text-4xl text-red-600"></i>
+                    </div>
+                  ) : passengers.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i className="ri-group-line text-4xl text-gray-400"></i>
+                      </div>
+                      <h3 className="text-lg font-bold text-gray-900 mb-2">Kayıtlı yolcu yok</h3>
+                      <p className="text-gray-500 text-sm">Sık seyahat eden kişileri ekleyerek rezervasyonları hızlandırın.</p>
+                    </div>
+                  ) : null}
                   <div className="space-y-4">
                     {passengers.map((passenger) => (
                       <div key={passenger.id} className="p-5 border border-gray-100 rounded-xl hover:border-red-200 transition-colors">

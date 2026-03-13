@@ -66,7 +66,7 @@ export default function Header() {
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2 cursor-pointer flex-shrink-0" onClick={() => setMobileOpen(false)}>
               <img src="/logo.png" alt="Bey Airlines" className="h-11 w-11 object-contain" />
-              <span className="text-xl font-bold tracking-tight text-gray-900">
+              <span className="text-xl font-bold tracking-wide text-gray-900 font-playfair">
                 Bey <span className="text-primary">Airlines</span>
               </span>
             </Link>
@@ -155,7 +155,7 @@ export default function Header() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gray-50">
               <Link to="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-2">
                 <img src="/logo.png" alt="Bey Airlines" className="h-9 w-9 object-contain" />
-                <span className="font-bold text-gray-900 text-base">
+                <span className="font-bold text-gray-900 text-base font-playfair">
                   Bey <span className="text-primary">Airlines</span>
                 </span>
               </Link>

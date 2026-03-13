@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 export const CITIES = [
@@ -20,21 +20,10 @@ export function getAvailableDestinations(fromCity: string) {
 }
 
 const MONTHS_TR = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
-const DAYS_TR = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
-
 export function formatDateTR(dateStr: string) {
   if (!dateStr) return '';
   const d = new Date(dateStr + 'T00:00:00');
   return `${d.getDate()} ${MONTHS_TR[d.getMonth()]} ${d.getFullYear()}`;
-}
-
-function getDaysInMonth(year: number, month: number) {
-  return new Date(year, month + 1, 0).getDate();
-}
-
-function getFirstDayOfMonth(year: number, month: number) {
-  const day = new Date(year, month, 1).getDay();
-  return day === 0 ? 6 : day - 1;
 }
 
 export function PortalDropdown({
@@ -178,50 +167,113 @@ export function CityDropdown({
   );
 }
 
-export function DatePicker({
+// Route → uçuş günü haritası (1=Pzt, 2=Sal, 3=Çar, 4=Per, 5=Cum, 7=Paz)
+const ROUTE_DAY_MAP: Record<string, number> = {
+  'İstanbul→Dubai': 1,
+  'Dubai→İstanbul': 3,
+  'Ankara→Dubai': 2,
+  'Dubai→Ankara': 4,
+  'İzmir→Dubai': 5,
+  'Dubai→İzmir': 7,
+};
+
+const DAYS_FULL_TR = ['', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
+
+function getRouteDayOfWeek(from: string, to: string): number | null {
+  return ROUTE_DAY_MAP[`${from}→${to}`] ?? null;
+}
+
+function getWeekRange(date: Date): { start: Date; end: Date } {
+  const day = date.getDay();
+  const diff = day === 0 ? -6 : 1 - day; // Pazartesi başlangıç
+  const start = new Date(date);
+  start.setDate(date.getDate() + diff);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  return { start, end };
+}
+
+function getFlightDateInWeek(weekStart: Date, dayOfWeek: number): Date {
+  const result = new Date(weekStart);
+  result.setDate(weekStart.getDate() + dayOfWeek - 1); // dayOfWeek 1=Pzt=offset 0
+  return result;
+}
+
+function toDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function formatWeekRange(start: Date, end: Date): string {
+  const sameMonth = start.getMonth() === end.getMonth();
+  if (sameMonth) {
+    return `${start.getDate()} - ${end.getDate()} ${MONTHS_TR[end.getMonth()]}`;
+  }
+  return `${start.getDate()} ${MONTHS_TR[start.getMonth()]} - ${end.getDate()} ${MONTHS_TR[end.getMonth()]}`;
+}
+
+export function WeekPicker({
   label,
   icon,
+  from,
+  to,
   value,
   onChange,
-  minDate,
 }: {
   label: string;
   icon: string;
+  from: string;
+  to: string;
   value: string;
   onChange: (date: string) => void;
-  minDate?: string;
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const today = new Date();
-  const [viewYear, setViewYear] = useState(today.getFullYear());
-  const [viewMonth, setViewMonth] = useState(today.getMonth());
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const goMonth = (dir: number) => {
-    let m = viewMonth + dir;
-    let y = viewYear;
-    if (m > 11) { m = 0; y++; }
-    if (m < 0) { m = 11; y--; }
-    setViewMonth(m);
-    setViewYear(y);
-  };
+  const dayOfWeek = getRouteDayOfWeek(from, to);
 
-  const daysInMonth = getDaysInMonth(viewYear, viewMonth);
-  const firstDay = getFirstDayOfMonth(viewYear, viewMonth);
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const weeks = useMemo(() => {
+    if (!dayOfWeek) return [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = toDateStr(today);
 
-  const isDisabled = (dateStr: string) => {
-    if (dateStr < todayStr) return true;
-    if (minDate && dateStr < minDate) return true;
-    return false;
-  };
+    const result: { weekStart: Date; weekEnd: Date; flightDate: Date; flightDateStr: string; isPast: boolean }[] = [];
 
-  const selectDate = (day: number) => {
-    const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    if (isDisabled(dateStr)) return;
-    onChange(dateStr);
-    setOpen(false);
-  };
+    // Mevcut haftadan başla, 8 hafta ilerle
+    const { start: currentWeekStart } = getWeekRange(today);
+    for (let i = 0; i < 8; i++) {
+      const weekStart = new Date(currentWeekStart);
+      weekStart.setDate(currentWeekStart.getDate() + i * 7);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+
+      const flightDate = getFlightDateInWeek(weekStart, dayOfWeek);
+      const flightDateStr = toDateStr(flightDate);
+      const isPast = flightDateStr < todayStr;
+
+      result.push({ weekStart, weekEnd, flightDate, flightDateStr, isPast });
+    }
+
+    return result;
+  }, [dayOfWeek]);
+
+  // Rota yoksa bilgi göster
+  if (!dayOfWeek) {
+    return (
+      <div className="relative">
+        <div className="w-full text-left px-4 py-3">
+          <label className="text-[10px] text-white/40 uppercase tracking-[0.15em] font-semibold mb-1 block">
+            {label}
+          </label>
+          <div className="flex items-center gap-2">
+            <i className={`${icon} text-lg text-white/40`}></i>
+            <span className="text-white/30 text-sm font-medium">Rota seçin</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative">
@@ -237,96 +289,62 @@ export function DatePicker({
         <div className="flex items-center gap-2">
           <i className={`${icon} text-lg text-white/40`}></i>
           <span className={`text-sm font-medium whitespace-nowrap ${value ? 'text-white' : 'text-white/30'}`}>
-            {value ? formatDateTR(value) : 'Tarih seçin'}
+            {value ? formatDateTR(value) : 'Hafta seçin'}
           </span>
           <i className={`ri-arrow-down-s-line text-white/30 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}></i>
         </div>
       </button>
 
-      <PortalDropdown open={open} onClose={() => setOpen(false)} triggerRef={triggerRef} width={300} align="center">
+      <PortalDropdown open={open} onClose={() => setOpen(false)} triggerRef={triggerRef} width={360} align="center">
         <div className="p-4">
-          <div className="flex items-center justify-between mb-4">
-            <button
-              type="button"
-              onClick={() => goMonth(-1)}
-              className="w-8 h-8 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] flex items-center justify-center transition-colors cursor-pointer"
-            >
-              <i className="ri-arrow-left-s-line text-white/70"></i>
-            </button>
-            <span className="text-white font-semibold text-sm">
-              {MONTHS_TR[viewMonth]} {viewYear}
+          <div className="flex items-center gap-2 mb-3">
+            <i className="ri-calendar-schedule-line text-red-400 text-sm"></i>
+            <span className="text-white/50 text-xs font-medium">
+              Her {DAYS_FULL_TR[dayOfWeek]} uçuş var
             </span>
-            <button
-              type="button"
-              onClick={() => goMonth(1)}
-              className="w-8 h-8 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] flex items-center justify-center transition-colors cursor-pointer"
-            >
-              <i className="ri-arrow-right-s-line text-white/70"></i>
-            </button>
           </div>
 
-          <div className="grid grid-cols-7 gap-1 mb-2">
-            {DAYS_TR.map((d) => (
-              <div key={d} className="text-center text-[10px] text-white/30 font-medium py-1">{d}</div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-7 gap-1">
-            {Array.from({ length: firstDay }).map((_, i) => (
-              <div key={`empty-${i}`} />
-            ))}
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const day = i + 1;
-              const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-              const isSelected = dateStr === value;
-              const isToday = dateStr === todayStr;
-              const disabled = isDisabled(dateStr);
+          <div
+            ref={scrollRef}
+            className="grid grid-cols-2 gap-2 max-h-[320px] overflow-y-auto pr-1"
+            style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.15) transparent' }}
+          >
+            {weeks.map((week) => {
+              const isSelected = week.flightDateStr === value;
+              const disabled = week.isPast;
 
               return (
                 <button
-                  key={day}
+                  key={week.flightDateStr}
                   type="button"
-                  onClick={() => selectDate(day)}
                   disabled={disabled}
-                  className={`w-full aspect-square rounded-lg text-sm font-medium transition-all cursor-pointer flex items-center justify-center ${
+                  onClick={() => {
+                    onChange(week.flightDateStr);
+                    setOpen(false);
+                  }}
+                  className={`relative p-3 rounded-xl text-left transition-all cursor-pointer border ${
                     isSelected
-                      ? 'bg-red-600 text-white shadow-lg shadow-red-600/30'
-                      : isToday
-                        ? 'bg-white/[0.1] text-white ring-1 ring-red-400/50'
-                        : disabled
-                          ? 'text-white/10 cursor-not-allowed'
-                          : 'text-white/60 hover:bg-white/[0.1] hover:text-white'
+                      ? 'bg-red-600/20 border-red-500/50 ring-1 ring-red-500/30'
+                      : disabled
+                        ? 'bg-white/[0.02] border-white/[0.04] opacity-40 cursor-not-allowed'
+                        : 'bg-white/[0.04] border-white/[0.08] hover:bg-white/[0.08] hover:border-white/[0.15]'
                   }`}
                 >
-                  {day}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="flex gap-2 mt-3 pt-3 border-t border-white/[0.08]">
-            {[
-              { label: 'Bugün', offset: 0 },
-              { label: 'Yarın', offset: 1 },
-              { label: '+1 Hafta', offset: 7 },
-            ].map((q) => {
-              const d = new Date();
-              d.setDate(d.getDate() + q.offset);
-              const qStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-              const qDisabled = minDate ? qStr < minDate : false;
-              return (
-                <button
-                  key={q.label}
-                  type="button"
-                  disabled={qDisabled}
-                  onClick={() => { onChange(qStr); setOpen(false); }}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                    qDisabled
-                      ? 'text-white/10 cursor-not-allowed'
-                      : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.12] hover:text-white'
-                  }`}
-                >
-                  {q.label}
+                  <p className={`text-xs font-medium mb-1 ${
+                    isSelected ? 'text-red-300' : 'text-white/40'
+                  }`}>
+                    {formatWeekRange(week.weekStart, week.weekEnd)}
+                  </p>
+                  <p className={`text-sm font-semibold ${
+                    isSelected ? 'text-white' : disabled ? 'text-white/30' : 'text-white/80'
+                  }`}>
+                    {DAYS_FULL_TR[dayOfWeek]} {week.flightDate.getDate()} {MONTHS_TR[week.flightDate.getMonth()]}
+                  </p>
+                  {isSelected && (
+                    <div className="absolute top-2 right-2">
+                      <i className="ri-check-line text-red-400 text-sm"></i>
+                    </div>
+                  )}
                 </button>
               );
             })}
@@ -426,29 +444,55 @@ interface SearchFormData {
   passengers: number;
 }
 
+/** Bugünden itibaren en yakın uçuş tarihini hesapla */
+function getNextFlightDate(dayOfWeek: number): string {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayDow = today.getDay() === 0 ? 7 : today.getDay();
+  let diff = dayOfWeek - todayDow;
+  if (diff < 0) diff += 7;
+  if (diff === 0) diff = 0; // Bugün uçuş varsa bugünü göster
+  const target = new Date(today);
+  target.setDate(today.getDate() + diff);
+  return toDateStr(target);
+}
+
 export function useSearchForm(initialData?: Partial<SearchFormData>) {
   const [tripType, setTripType] = useState<'round' | 'one-way'>('round');
   const [flightClass, setFlightClass] = useState<'normal' | 'vip'>('normal');
-  const [formData, setFormData] = useState<SearchFormData>({
-    from: 'İstanbul',
-    to: 'Dubai',
-    departDate: new Date().toISOString().split('T')[0],
-    returnDate: '',
-    passengers: 1,
-    ...initialData,
+  const [formData, setFormData] = useState<SearchFormData>(() => {
+    const from = initialData?.from || 'İstanbul';
+    const to = initialData?.to || 'Dubai';
+    const departDay = getRouteDayOfWeek(from, to);
+    const defaultDepart = departDay ? getNextFlightDate(departDay) : new Date().toISOString().split('T')[0];
+    return {
+      from,
+      to,
+      departDate: initialData?.departDate || defaultDepart,
+      returnDate: initialData?.returnDate || '',
+      passengers: initialData?.passengers || 1,
+    };
   });
 
   const handleSwap = useCallback(() => {
-    setFormData((prev) => ({ ...prev, from: prev.to, to: prev.from }));
+    setFormData((prev) => ({ ...prev, from: prev.to, to: prev.from, departDate: '', returnDate: '' }));
   }, []);
 
   // "from" değişince "to"yu otomatik düzelt (iç hat olmasın)
   useEffect(() => {
     const available = getAvailableDestinations(formData.from);
     if (!available.find(c => c.name === formData.to)) {
-      setFormData((prev) => ({ ...prev, to: available[0]?.name || 'Dubai' }));
+      setFormData((prev) => ({ ...prev, to: available[0]?.name || 'Dubai', departDate: '', returnDate: '' }));
     }
   }, [formData.from, formData.to]);
+
+  // Rota değişince tarihleri sıfırla ve en yakın uçuşu seç
+  useEffect(() => {
+    const departDay = getRouteDayOfWeek(formData.from, formData.to);
+    if (departDay && !formData.departDate) {
+      setFormData((prev) => ({ ...prev, departDate: getNextFlightDate(departDay) }));
+    }
+  }, [formData.from, formData.to, formData.departDate]);
 
   useEffect(() => {
     if (formData.departDate && formData.returnDate && formData.returnDate < formData.departDate) {
