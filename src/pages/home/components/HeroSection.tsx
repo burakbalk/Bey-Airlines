@@ -45,11 +45,8 @@ export default function HeroSection() {
         </div>
       </div>
 
-      {/* ORTA — Boş alan, video görünsün */}
-      <div className="flex-1"></div>
-
-      {/* ALT — Arama Formu */}
-      <div className="relative z-10 w-full px-4 pb-6 sm:pb-8">
+      {/* ALT — Arama Formu, viewport içinde sabit */}
+      <div className="absolute bottom-6 sm:bottom-8 left-0 right-0 z-20 px-4">
         <div className="max-w-5xl mx-auto">
           <div className="relative rounded-2xl shadow-2xl shadow-black/20">
             <div className="absolute inset-0 bg-white/[0.04] backdrop-blur-xl ring-1 ring-white/[0.08] rounded-2xl pointer-events-none"></div>
