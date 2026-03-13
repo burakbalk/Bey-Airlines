@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useRef, useEffect } from 'react';
 import {
   CityDropdown,
   WeekPicker,
@@ -9,14 +10,27 @@ import {
 
 export default function HeroSection() {
   const navigate = useNavigate();
+  const sectionRef = useRef<HTMLElement>(null);
   const { tripType, setTripType, flightClass, setFlightClass, formData, setFormData, handleSwap } = useSearchForm();
+
+  useEffect(() => {
+    const updateHeight = () => {
+      const el = sectionRef.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      el.style.height = `${window.innerHeight - top}px`;
+    };
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    return () => window.removeEventListener('resize', updateHeight);
+  }, []);
 
   const handleSearch = () => {
     navigate('/ucus-ara', { state: { ...formData, flightClass } });
   };
 
   return (
-    <section className="relative h-[100dvh] flex flex-col">
+    <section ref={sectionRef} className="relative flex flex-col overflow-hidden">
 
       {/* Video Background */}
       <div className="absolute inset-0">
