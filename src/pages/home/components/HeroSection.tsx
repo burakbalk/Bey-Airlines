@@ -53,8 +53,8 @@ export default function HeroSection() {
             </span>{' '}
             Uçun
           </h1>
-          <p className="hidden sm:block text-base sm:text-lg text-white/75 font-light tracking-wide [text-shadow:_0_1px_8px_rgba(0,0,0,0.5)] max-w-xl mx-auto">
-            İstanbul · Ankara · İzmir ⇄ Dubai — Ekonomi ve VIP sınıflarıyla konforlu uçuş deneyimi
+          <p className="hidden sm:block text-sm sm:text-base text-white/75 font-light tracking-wide [text-shadow:_0_1px_8px_rgba(0,0,0,0.5)] whitespace-nowrap mx-auto">
+            İstanbul · Ankara · İzmir ⇄ Dubai &mdash; Ekonomi ve VIP sınıflarıyla konforlu uçuş deneyimi
           </p>
         </div>
 
