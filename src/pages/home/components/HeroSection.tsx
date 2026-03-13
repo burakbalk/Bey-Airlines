@@ -58,20 +58,20 @@ export default function HeroSection() {
 
       {/* Search Form */}
       <div className="relative z-10 w-full max-w-5xl mx-auto px-4">
-        <div className="relative rounded-2xl shadow-2xl shadow-black/30">
+        <div className="relative rounded-2xl shadow-2xl shadow-black/20">
           {/* Frosted glass background */}
-          <div className="absolute inset-0 bg-white/[0.07] backdrop-blur-2xl ring-1 ring-white/[0.12] rounded-2xl pointer-events-none"></div>
+          <div className="absolute inset-0 bg-white/[0.04] backdrop-blur-xl ring-1 ring-white/[0.08] rounded-2xl pointer-events-none"></div>
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent pointer-events-none rounded-t-2xl"></div>
 
-          <div className="relative p-5 sm:p-6">
+          <div className="relative p-3 sm:p-4">
             {/* Trip type & class tabs */}
-            <div className="flex flex-wrap items-center justify-between mb-5 gap-2">
+            <div className="flex flex-wrap items-center justify-between mb-3 gap-2">
               <div className="flex items-center gap-1 bg-white/[0.08] rounded-xl p-0.5">
                 {(['round', 'one-way'] as const).map((t) => (
                   <button
                     key={t}
                     onClick={() => setTripType(t)}
-                    className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all whitespace-nowrap cursor-pointer ${
                       tripType === t
                         ? 'bg-white/20 text-white shadow-sm'
                         : 'text-white/50 hover:text-white/80'
@@ -86,7 +86,7 @@ export default function HeroSection() {
               <div className="flex items-center gap-1 bg-white/[0.08] rounded-xl p-0.5">
                 <button
                   onClick={() => setFlightClass('normal')}
-                  className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all whitespace-nowrap cursor-pointer ${
                     flightClass === 'normal'
                       ? 'bg-white/20 text-white shadow-sm'
                       : 'text-white/50 hover:text-white/80'
@@ -97,7 +97,7 @@ export default function HeroSection() {
                 </button>
                 <button
                   onClick={() => setFlightClass('vip')}
-                  className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
                     flightClass === 'vip'
                       ? 'bg-amber-500/25 text-amber-300 shadow-sm'
                       : 'text-white/50 hover:text-white/80'
@@ -110,9 +110,9 @@ export default function HeroSection() {
             </div>
 
             {/* Form fields */}
-            <div className="flex flex-col md:flex-row items-stretch gap-2 mb-4">
+            <div className="flex flex-col lg:flex-row items-stretch gap-2 mb-0">
               {/* From-To Group */}
-              <div className="flex-1 flex items-stretch bg-white/[0.07] rounded-2xl border border-white/[0.12] hover:border-white/[0.2] transition-colors">
+              <div className="flex-[2] flex items-stretch bg-white/[0.03] rounded-xl border border-white/[0.06] hover:border-white/[0.12] transition-colors">
                 <CityDropdown
                   label="Nereden"
                   icon="ri-takeoff-line"
@@ -141,7 +141,7 @@ export default function HeroSection() {
               </div>
 
               {/* Date Group */}
-              <div className="flex items-stretch bg-white/[0.07] rounded-2xl border border-white/[0.12] hover:border-white/[0.2] transition-colors">
+              <div className="flex-[1.5] flex items-stretch bg-white/[0.03] rounded-xl border border-white/[0.06] hover:border-white/[0.12] transition-colors">
                 <WeekPicker
                   label="Gidiş"
                   icon="ri-calendar-line"
@@ -165,23 +165,22 @@ export default function HeroSection() {
               </div>
 
               {/* Passengers */}
-              <div className="flex items-stretch bg-white/[0.07] rounded-2xl border border-white/[0.12] hover:border-white/[0.2] transition-colors">
+              <div className="flex-none flex items-stretch bg-white/[0.03] rounded-xl border border-white/[0.06] hover:border-white/[0.12] transition-colors">
                 <PassengerSelector
                   value={formData.passengers}
                   onChange={(n) => setFormData({ ...formData, passengers: n })}
                 />
               </div>
-            </div>
 
-            {/* Search button */}
-            <button
-              onClick={handleSearch}
-              className="w-full py-4 bg-gradient-to-r from-primary to-secondary hover:from-primary-dark hover:to-primary text-white font-bold rounded-2xl transition-all text-base cursor-pointer flex items-center justify-center gap-2.5 shadow-lg hover:shadow-xl hover:shadow-red-500/30 active:scale-[0.98]"
-            >
-              <i className="ri-search-line text-xl"></i>
-              Uçuş Ara
-              <i className="ri-arrow-right-line text-lg ml-1 opacity-70"></i>
-            </button>
+              {/* Search button */}
+              <button
+                onClick={handleSearch}
+                className="flex-none lg:w-14 lg:aspect-square w-full py-3 lg:py-0 bg-gradient-to-r from-primary to-secondary hover:from-primary-dark hover:to-primary text-white font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg hover:shadow-xl hover:shadow-red-500/20 active:scale-[0.98]"
+              >
+                <i className="ri-search-line text-xl"></i>
+                <span className="lg:hidden text-sm">Uçuş Ara</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
