@@ -23,7 +23,7 @@ export default function HeroSection() {
   };
 
   return (
-    <section className="relative min-h-screen flex flex-col items-center justify-center py-24 gap-8 overflow-hidden">
+    <section className="relative h-[100dvh] flex flex-col items-center justify-center overflow-hidden">
       {/* Video Background */}
       <div className="absolute inset-0">
         <video
@@ -37,27 +37,29 @@ export default function HeroSection() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/65 via-black/45 to-black/75"></div>
       </div>
 
-      {/* Hero Text */}
-      <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
-        <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-1.5 mb-6">
-          <span className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse"></span>
-          <p className="text-red-200 text-xs font-semibold uppercase tracking-[0.25em]">Türkiye'nin Gururu</p>
+      {/* Content wrapper */}
+      <div className="relative z-10 flex flex-col items-center justify-center flex-1 w-full px-4 gap-4 sm:gap-6 py-8 sm:py-12">
+        {/* Hero Text */}
+        <div className="text-center max-w-4xl mx-auto">
+          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-1.5 mb-3 sm:mb-6">
+            <span className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse"></span>
+            <p className="text-red-200 text-xs font-semibold uppercase tracking-[0.25em]">Türkiye'nin Gururu</p>
+          </div>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-extrabold text-white mb-3 sm:mb-5 leading-[1.1] [text-shadow:_0_2px_20px_rgba(0,0,0,0.6)]">
+            Hayalinizdeki
+            <br />
+            <span className="bg-gradient-to-r from-red-300 to-red-400 bg-clip-text text-transparent">
+              Destinasyona
+            </span>{' '}
+            Uçun
+          </h1>
+          <p className="hidden sm:block text-base sm:text-lg text-white/75 font-light tracking-wide [text-shadow:_0_1px_8px_rgba(0,0,0,0.5)] max-w-xl mx-auto">
+            İstanbul · Ankara · İzmir ⇄ Dubai — Ekonomi ve VIP sınıflarıyla konforlu uçuş deneyimi
+          </p>
         </div>
-        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-white mb-5 leading-[1.1] [text-shadow:_0_2px_20px_rgba(0,0,0,0.6)]">
-          Hayalinizdeki
-          <br />
-          <span className="bg-gradient-to-r from-red-300 to-red-400 bg-clip-text text-transparent">
-            Destinasyona
-          </span>{' '}
-          Uçun
-        </h1>
-        <p className="text-base sm:text-lg text-white/75 font-light tracking-wide [text-shadow:_0_1px_8px_rgba(0,0,0,0.5)] max-w-xl mx-auto">
-          İstanbul · Ankara · İzmir ⇄ Dubai — Ekonomi ve VIP sınıflarıyla konforlu uçuş deneyimi
-        </p>
-      </div>
 
-      {/* Search Form */}
-      <div className="relative z-10 w-full max-w-5xl mx-auto px-4">
+        {/* Search Form */}
+        <div className="w-full max-w-5xl mx-auto">
         <div className="relative rounded-2xl shadow-2xl shadow-black/20">
           {/* Frosted glass background */}
           <div className="absolute inset-0 bg-white/[0.04] backdrop-blur-xl ring-1 ring-white/[0.08] rounded-2xl pointer-events-none"></div>
@@ -71,7 +73,7 @@ export default function HeroSection() {
                   <button
                     key={t}
                     onClick={() => setTripType(t)}
-                    className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all whitespace-nowrap cursor-pointer ${
+                    className={`px-2.5 py-2 rounded-md text-[11px] font-medium transition-all whitespace-nowrap cursor-pointer ${
                       tripType === t
                         ? 'bg-white/20 text-white shadow-sm'
                         : 'text-white/50 hover:text-white/80'
@@ -86,7 +88,7 @@ export default function HeroSection() {
               <div className="flex items-center gap-1 bg-white/[0.08] rounded-xl p-0.5">
                 <button
                   onClick={() => setFlightClass('normal')}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all whitespace-nowrap cursor-pointer ${
+                  className={`px-2.5 py-2 rounded-md text-[11px] font-medium transition-all whitespace-nowrap cursor-pointer ${
                     flightClass === 'normal'
                       ? 'bg-white/20 text-white shadow-sm'
                       : 'text-white/50 hover:text-white/80'
@@ -97,7 +99,7 @@ export default function HeroSection() {
                 </button>
                 <button
                   onClick={() => setFlightClass('vip')}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                  className={`px-2.5 py-2 rounded-md text-[11px] font-medium transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
                     flightClass === 'vip'
                       ? 'bg-amber-500/25 text-amber-300 shadow-sm'
                       : 'text-white/50 hover:text-white/80'
@@ -184,24 +186,25 @@ export default function HeroSection() {
           </div>
         </div>
       </div>
+      </div>
 
       {/* Trust Stats */}
-      <div className="relative z-10 w-full max-w-2xl mx-auto px-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="absolute bottom-20 sm:bottom-24 left-1/2 -translate-x-1/2 z-10 w-full max-w-2xl px-4">
+        <div className="grid grid-cols-4 gap-2 sm:gap-4">
           {TRUST_STATS.map((stat, i) => (
             <div key={i} className="text-center">
-              <div className="inline-flex items-center justify-center w-10 h-10 bg-white/10 backdrop-blur-sm rounded-xl mb-2 mx-auto">
+              <div className="hidden sm:inline-flex items-center justify-center w-10 h-10 bg-white/10 backdrop-blur-sm rounded-xl mb-2 mx-auto">
                 <i className={`${stat.icon} text-lg text-white/90`}></i>
               </div>
-              <p className="text-white font-bold text-lg leading-none">{stat.value}</p>
-              <p className="text-white/55 text-xs mt-0.5">{stat.label}</p>
+              <p className="text-white font-bold text-sm sm:text-lg leading-none">{stat.value}</p>
+              <p className="text-white/55 text-[10px] sm:text-xs mt-0.5 hidden sm:block">{stat.label}</p>
             </div>
           ))}
         </div>
       </div>
 
       {/* Scroll indicator */}
-      <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-1 opacity-50">
+      <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-10 hidden sm:flex flex-col items-center gap-1 opacity-50">
         <span className="text-white text-[10px] uppercase tracking-widest">Keşfet</span>
         <i className="ri-arrow-down-line text-white text-xl animate-bounce"></i>
       </div>
