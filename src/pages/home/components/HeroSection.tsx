@@ -23,7 +23,7 @@ export default function HeroSection() {
   };
 
   return (
-    <section className="relative h-[100dvh] flex flex-col items-center justify-center overflow-hidden">
+    <section className="relative h-[100dvh] flex flex-col overflow-hidden">
       {/* Video Background */}
       <div className="absolute inset-0">
         <video
@@ -34,18 +34,18 @@ export default function HeroSection() {
           className="w-full h-full object-cover"
           src="/herovideo.mp4"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/65 via-black/45 to-black/75"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70"></div>
       </div>
 
-      {/* Content wrapper */}
-      <div className="relative z-10 flex flex-col items-center justify-center flex-1 w-full px-4 gap-4 sm:gap-6 py-8 sm:py-12">
+      {/* Content wrapper — yazı üstte, form altta */}
+      <div className="relative z-10 flex flex-col justify-between flex-1 px-4 pt-12 sm:pt-16 pb-8 sm:pb-10">
         {/* Hero Text */}
         <div className="text-center max-w-4xl mx-auto">
-          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-1.5 mb-3 sm:mb-6">
+          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-1.5 mb-4 sm:mb-6">
             <span className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse"></span>
             <p className="text-red-200 text-xs font-semibold uppercase tracking-[0.25em]">Türkiye'nin Gururu</p>
           </div>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-extrabold text-white mb-3 sm:mb-5 leading-[1.1] [text-shadow:_0_2px_20px_rgba(0,0,0,0.6)]">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-white mb-3 sm:mb-5 leading-[1.1] [text-shadow:_0_2px_20px_rgba(0,0,0,0.6)]">
             Hayalinizdeki
             <br />
             <span className="bg-gradient-to-r from-red-300 to-red-400 bg-clip-text text-transparent">
@@ -188,29 +188,8 @@ export default function HeroSection() {
       </div>
       </div>
 
-      {/* Trust Stats */}
-      <div className="absolute bottom-20 sm:bottom-24 left-1/2 -translate-x-1/2 z-10 w-full max-w-2xl px-4">
-        <div className="grid grid-cols-4 gap-2 sm:gap-4">
-          {TRUST_STATS.map((stat, i) => (
-            <div key={i} className="text-center">
-              <div className="hidden sm:inline-flex items-center justify-center w-10 h-10 bg-white/10 backdrop-blur-sm rounded-xl mb-2 mx-auto">
-                <i className={`${stat.icon} text-lg text-white/90`}></i>
-              </div>
-              <p className="text-white font-bold text-sm sm:text-lg leading-none">{stat.value}</p>
-              <p className="text-white/55 text-[10px] sm:text-xs mt-0.5 hidden sm:block">{stat.label}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Scroll indicator */}
-      <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-10 hidden sm:flex flex-col items-center gap-1 opacity-50">
-        <span className="text-white text-[10px] uppercase tracking-widest">Keşfet</span>
-        <i className="ri-arrow-down-line text-white text-xl animate-bounce"></i>
-      </div>
-
       {/* Bottom fade */}
-      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#FFF5F5] to-transparent pointer-events-none z-10"></div>
+      <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[#FFF5F5] to-transparent pointer-events-none z-10"></div>
     </section>
   );
 }
