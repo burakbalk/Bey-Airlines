@@ -16,7 +16,7 @@ export default function HeroSection() {
   };
 
   return (
-    <section className="relative h-[100dvh] flex flex-col overflow-hidden">
+    <section className="relative h-[100dvh] flex flex-col">
 
       {/* Video Background */}
       <div className="absolute inset-0">
@@ -45,8 +45,11 @@ export default function HeroSection() {
         </div>
       </div>
 
-      {/* ALT — Arama Formu, viewport içinde sabit */}
-      <div className="absolute bottom-6 sm:bottom-8 left-0 right-0 z-20 px-4">
+      {/* Spacer — video görünsün, sıkışınca küçülür */}
+      <div className="flex-1 min-h-0"></div>
+
+      {/* ALT — Arama Formu */}
+      <div className="relative z-20 w-full px-4 pb-4 sm:pb-6 shrink-0">
         <div className="max-w-5xl mx-auto">
           <div className="relative rounded-2xl shadow-2xl shadow-black/20">
             <div className="absolute inset-0 bg-white/[0.04] backdrop-blur-xl ring-1 ring-white/[0.08] rounded-2xl pointer-events-none"></div>
