@@ -2,17 +2,42 @@ import { useState } from 'react';
 import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
 import { supabase } from '../../lib/supabase';
+import { usePageTitle } from '../../hooks/usePageTitle';
+
+interface ReservationSearchResult {
+  pnr: string;
+  surname: string;
+  flightNumber: string;
+  date: string;
+  time: string;
+  from: string;
+  to: string;
+  class: string;
+  status: string;
+  baggage: string;
+  totalPrice: string;
+  passengers: { name: string; type: string; seat: string }[];
+}
+
+interface RpcPassenger {
+  first_name: string;
+  last_name: string;
+  passenger_type?: string;
+  seat_number?: string;
+}
 
 export default function ReservationManagementPage() {
+  usePageTitle('Rezervasyon Yönetimi');
   const [pnr, setPnr] = useState('');
   const [surname, setSurname] = useState('');
-  const [searchResult, setSearchResult] = useState<any>(null);
+  const [searchResult, setSearchResult] = useState<ReservationSearchResult | null>(null);
   const [error, setError] = useState('');
   const [searching, setSearching] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showChangeModal, setShowChangeModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [cancelling, setCancelling] = useState(false);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,11 +51,9 @@ export default function ReservationManagementPage() {
 
     setSearching(true);
 
-    const { data, error: fetchError } = await supabase
-      .from('reservations')
-      .select('*, passengers(*)')
-      .eq('pnr', pnr.toUpperCase())
-      .single();
+    const { data, error: fetchError } = await supabase.rpc('get_reservation_by_pnr', {
+      p_pnr: pnr.toUpperCase(),
+    });
 
     setSearching(false);
 
@@ -41,7 +64,7 @@ export default function ReservationManagementPage() {
 
     // Check if any passenger surname matches
     const passengerMatch = data.passengers?.some(
-      (p: any) => p.last_name?.toUpperCase() === surname.toUpperCase()
+      (p: RpcPassenger) => p.last_name?.toUpperCase() === surname.toUpperCase()
     );
 
     if (!passengerMatch) {
@@ -49,8 +72,8 @@ export default function ReservationManagementPage() {
       return;
     }
 
-    // Map Supabase data to the shape the UI expects
-    const routeParts = data.route?.split('→').map((s: string) => s.trim()) || ['', ''];
+    // Map RPC result to the shape the UI expects
+    const routeParts = (data.route?.split('→') || ['']).map((s: string) => s.trim());
     setSearchResult({
       pnr: data.pnr,
       surname: surname.toUpperCase(),
@@ -63,7 +86,7 @@ export default function ReservationManagementPage() {
       status: data.status,
       baggage: data.flight_class === 'VIP' ? '30 kg' : '20 kg',
       totalPrice: `${data.total_price?.toLocaleString('tr-TR')} TL`,
-      passengers: data.passengers?.map((p: any) => ({
+      passengers: data.passengers?.map((p: RpcPassenger) => ({
         name: `${p.first_name} ${p.last_name}`,
         type: p.passenger_type || 'Yetişkin',
         seat: p.seat_number || '-',
@@ -71,9 +94,25 @@ export default function ReservationManagementPage() {
     });
   };
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
+    if (!searchResult) return;
+    setCancelling(true);
+
+    const { error: updateError } = await supabase
+      .from('reservations')
+      .update({ status: 'İptal Edildi' })
+      .eq('pnr', searchResult.pnr);
+
+    setCancelling(false);
     setShowCancelModal(false);
-    setSuccessMessage('Rezervasyon iptal talebiniz alınmıştır. En kısa sürede size dönüş yapılacaktır.');
+
+    if (updateError) {
+      setError('İptal işlemi başarısız oldu. Lütfen daha sonra tekrar deneyiniz.');
+      return;
+    }
+
+    setSearchResult({ ...searchResult, status: 'İptal Edildi' });
+    setSuccessMessage('Rezervasyonunuz başarıyla iptal edilmiştir. İade işlemi için müşteri hizmetlerimiz sizinle iletişime geçecektir.');
     setShowSuccessModal(true);
   };
 
@@ -90,7 +129,7 @@ export default function ReservationManagementPage() {
         {/* Hero Section */}
         <div className="relative bg-gradient-to-br from-red-600 via-red-500 to-red-700 pt-16 pb-16">
           <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/20"></div>
-          <div className="relative z-10 max-w-4xl mx-auto px-8 text-center">
+          <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-8 text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-full mb-6">
               <i className="ri-file-list-3-line text-3xl text-white"></i>
             </div>
@@ -108,7 +147,7 @@ export default function ReservationManagementPage() {
         </div>
 
         {/* Search Form */}
-        <div className="max-w-4xl mx-auto px-8 -mt-10 relative z-20">
+        <div className="max-w-4xl mx-auto px-4 sm:px-8 -mt-10 relative z-20">
           <div className="bg-white rounded-2xl shadow-2xl p-10 border border-gray-100">
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Rezervasyon Sorgula</h2>
             <p className="text-gray-500 text-sm mb-8">PNR kodunuz ve soyadınızla rezervasyonunuza ulaşın</p>
@@ -161,7 +200,7 @@ export default function ReservationManagementPage() {
             </form>
 
             {/* Info Cards */}
-            <div className="grid grid-cols-3 gap-4 mt-8 pt-8 border-t border-gray-100">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8 pt-8 border-t border-gray-100">
               {[
                 { icon: 'ri-mail-line', title: 'PNR Nerede?', desc: 'Onay e-postanızda bulunur' },
                 { icon: 'ri-edit-line', title: 'Değişiklik', desc: '24 saat öncesine kadar' },
@@ -181,7 +220,7 @@ export default function ReservationManagementPage() {
 
         {/* Search Result */}
         {searchResult && (
-          <div className="max-w-4xl mx-auto px-8 mt-8 pb-16">
+          <div className="max-w-4xl mx-auto px-4 sm:px-8 mt-8 pb-16">
             <div className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
               {/* Result Header */}
               <div className={`p-6 ${searchResult.class === 'VIP' ? 'bg-gradient-to-r from-amber-500 to-amber-600' : 'bg-gradient-to-r from-red-600 to-red-700'} text-white`}>
@@ -247,7 +286,7 @@ export default function ReservationManagementPage() {
                   Yolcu Bilgileri
                 </h3>
                 <div className="space-y-3">
-                  {searchResult.passengers.map((passenger: any, idx: number) => (
+                  {searchResult.passengers.map((passenger: { name: string; type: string; seat: string }, idx: number) => (
                     <div key={idx} className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
                       <div>
                         <div className="font-semibold text-gray-900">{passenger.name}</div>
@@ -287,6 +326,14 @@ export default function ReservationManagementPage() {
 
               {/* Actions */}
               <div className="p-6 bg-gray-50">
+                {searchResult.status === 'İptal Edildi' ? (
+                  <div className="text-center py-2">
+                    <div className="inline-flex items-center gap-2 text-red-600 font-semibold">
+                      <i className="ri-close-circle-fill text-xl"></i>
+                      Bu rezervasyon iptal edilmiştir
+                    </div>
+                  </div>
+                ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <button
                     onClick={() => setShowChangeModal(true)}
@@ -303,6 +350,7 @@ export default function ReservationManagementPage() {
                     Rezervasyon İptal Et
                   </button>
                 </div>
+                )}
               </div>
             </div>
           </div>
@@ -322,15 +370,17 @@ export default function ReservationManagementPage() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowCancelModal(false)}
-                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 rounded-xl transition-all whitespace-nowrap cursor-pointer"
+                  disabled={cancelling}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 rounded-xl transition-all whitespace-nowrap cursor-pointer disabled:opacity-50"
                 >
                   Vazgeç
                 </button>
                 <button
                   onClick={handleCancel}
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-xl transition-all whitespace-nowrap cursor-pointer"
+                  disabled={cancelling}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-xl transition-all whitespace-nowrap cursor-pointer disabled:opacity-50"
                 >
-                  İptal Et
+                  {cancelling ? <><i className="ri-loader-4-line animate-spin mr-2"></i>İptal Ediliyor...</> : 'İptal Et'}
                 </button>
               </div>
             </div>

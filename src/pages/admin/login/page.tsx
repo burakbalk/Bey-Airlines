@@ -1,21 +1,24 @@
 import { useState, FormEvent, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 
 export default function AdminLoginPage() {
   const navigate = useNavigate();
-  const { signIn, profile, user, loading: authLoading } = useAuth();
+  const { profile, user, loading: authLoading, signIn } = useAuth();
+
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   // If already logged in as admin, redirect
   useEffect(() => {
     if (!authLoading && user && profile?.role === 'admin') {
-      navigate('/admin/dashboard');
+      navigate('/admin/dashboard', { replace: true });
     }
   }, [authLoading, user, profile, navigate]);
 
@@ -24,32 +27,31 @@ export default function AdminLoginPage() {
     setError('');
     setLoading(true);
 
-    const { error: signInError } = await signIn(formData.email, formData.password);
+    try {
+      // AuthContext signIn kullan — profile'i context'e set eder
+      const { error: signInError, profile: signedInProfile } = await signIn(
+        formData.email,
+        formData.password,
+      );
 
-    if (signInError) {
-      setLoading(false);
-      setError(signInError);
-      return;
-    }
-
-    // Wait briefly for profile to load, then check role
-    // We use a small delay because profile fetching is async after signIn
-    setTimeout(() => {
-      // Profile will be checked via the useEffect below
-    }, 500);
-  };
-
-  // Watch for profile changes after successful sign in
-  useEffect(() => {
-    if (loading && user && profile) {
-      if (profile.role === 'admin') {
-        navigate('/admin/dashboard');
-      } else {
+      if (signInError) {
+        setError(signInError);
         setLoading(false);
-        setError('Bu hesap admin değil');
+        return;
       }
+
+      if (signedInProfile?.role === 'admin') {
+        // React Router navigate — state korunur, full reload yok
+        navigate('/admin/dashboard', { replace: true });
+      } else {
+        setError(`Bu hesap admin yetkisine sahip değil (role: ${signedInProfile?.role || 'bulunamadı'})`);
+        setLoading(false);
+      }
+    } catch (err) {
+      setError('Beklenmeyen bir hata oluştu');
+      setLoading(false);
     }
-  }, [loading, user, profile, navigate]);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-600 via-red-500 to-red-700 flex items-center justify-center p-4">
@@ -91,6 +93,7 @@ export default function AdminLoginPage() {
                 <input
                   type="email"
                   required
+                  autoComplete="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm"
@@ -108,14 +111,35 @@ export default function AdminLoginPage() {
                   <i className="ri-lock-line text-lg text-gray-400"></i>
                 </div>
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
+                  autoComplete="current-password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm"
+                  className="w-full pl-12 pr-12 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm"
                   placeholder="••••••••"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                >
+                  <i className={`${showPassword ? 'ri-eye-off-line' : 'ri-eye-line'} text-lg`}></i>
+                </button>
               </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <input
+                id="rememberMe"
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer"
+              />
+              <label htmlFor="rememberMe" className="text-sm text-gray-600 cursor-pointer select-none">
+                Beni Hatırla
+              </label>
             </div>
 
             <button
@@ -138,15 +162,20 @@ export default function AdminLoginPage() {
           </form>
         </div>
 
+        {/* Version */}
+        <div className="text-center mt-4">
+          <p className="text-white/50 text-xs">v2.0 - Bey Airlines Admin</p>
+        </div>
+
         {/* Back to Site */}
-        <div className="text-center mt-6">
-          <a
-            href="/"
+        <div className="text-center mt-4">
+          <Link
+            to="/"
             className="inline-flex items-center gap-2 text-white hover:text-red-100 transition-colors text-sm font-medium"
           >
             <i className="ri-arrow-left-line"></i>
             Ana Siteye Dön
-          </a>
+          </Link>
         </div>
       </div>
     </div>

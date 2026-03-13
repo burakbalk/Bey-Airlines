@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../../../components/admin/AdminLayout';
-import AdminGuard from '../../../components/admin/AdminGuard';
 import { supabase } from '../../../lib/supabase';
+
+const ITEMS_PER_PAGE = 20;
 
 interface Profile {
   id: string;
@@ -30,7 +31,8 @@ export default function AdminCustomersPage() {
   const [roleFilter, setRoleFilter] = useState<'Tümü' | 'user' | 'admin'>('Tümü');
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDisplay | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [customerReservations, setCustomerReservations] = useState<any[]>([]);
+  const [customerReservations, setCustomerReservations] = useState<{ id: string; pnr: string; route: string; flight_date: string; total_price: number; status: string }[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     fetchCustomers();
@@ -57,7 +59,7 @@ export default function AdminCustomersPage() {
 
     const countMap: Record<string, number> = {};
     if (reservationCounts) {
-      reservationCounts.forEach((r: any) => {
+      reservationCounts.forEach((r: { user_id: string | null }) => {
         if (r.user_id) {
           countMap[r.user_id] = (countMap[r.user_id] || 0) + 1;
         }
@@ -88,7 +90,7 @@ export default function AdminCustomersPage() {
 
     const emailMap: Record<string, string> = {};
     if (emailData) {
-      emailData.forEach((r: any) => {
+      emailData.forEach((r: { user_id: string | null; contact_email: string | null }) => {
         if (r.user_id && r.contact_email) {
           emailMap[r.user_id] = r.contact_email;
         }
@@ -116,6 +118,12 @@ export default function AdminCustomersPage() {
     return matchesSearch && matchesRole;
   });
 
+  const totalPages = Math.max(1, Math.ceil(filteredCustomers.length / ITEMS_PER_PAGE));
+  const paginatedCustomers = filteredCustomers.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   const handleViewDetail = async (customer: CustomerDisplay) => {
     setSelectedCustomer(customer);
     setShowDetailModal(true);
@@ -139,20 +147,17 @@ export default function AdminCustomersPage() {
 
   if (loading) {
     return (
-      <AdminGuard>
-        <AdminLayout>
-          <div className="flex items-center justify-center h-96">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600"></div>
-          </div>
-        </AdminLayout>
-      </AdminGuard>
+      <AdminLayout>
+        <div className="flex items-center justify-center h-96">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600"></div>
+        </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <AdminGuard>
-      <AdminLayout>
-        <div className="space-y-6">
+    <AdminLayout>
+      <div className="space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
@@ -193,7 +198,7 @@ export default function AdminCustomersPage() {
                     type="text"
                     placeholder="Ad, e-posta veya telefon ile ara..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                     className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm"
                   />
                 </div>
@@ -202,7 +207,7 @@ export default function AdminCustomersPage() {
                 {(['Tümü', 'user', 'admin'] as const).map((role) => (
                   <button
                     key={role}
-                    onClick={() => setRoleFilter(role)}
+                    onClick={() => { setRoleFilter(role); setCurrentPage(1); }}
                     className={`px-4 py-3 rounded-xl font-medium text-sm transition-colors whitespace-nowrap cursor-pointer ${
                       roleFilter === role
                         ? 'bg-red-600 text-white shadow-md'
@@ -231,7 +236,7 @@ export default function AdminCustomersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {filteredCustomers.map((customer) => (
+                  {paginatedCustomers.map((customer) => (
                     <tr key={customer.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -279,6 +284,63 @@ export default function AdminCustomersPage() {
                 </tbody>
               </table>
             </div>
+            {filteredCustomers.length > 0 && (
+              <div className="flex items-center justify-between px-5 py-4 border-t border-gray-100">
+                <p className="text-sm text-gray-500">
+                  Toplam <span className="font-semibold text-gray-900">{filteredCustomers.length}</span> kayıt,{' '}
+                  <span className="font-semibold text-gray-900">{currentPage}</span> / {totalPages} sayfa
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                  >
+                    <i className="ri-arrow-left-s-line text-lg"></i>
+                  </button>
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    const start = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
+                    return start + i;
+                  }).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-medium transition-colors cursor-pointer ${
+                        page === currentPage ? 'bg-red-600 text-white shadow-md' : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                  >
+                    <i className="ri-arrow-right-s-line text-lg"></i>
+                  </button>
+                </div>
+              </div>
+            )}
+            {filteredCustomers.length === 0 && (
+              <div className="text-center py-16">
+                <i className="ri-group-line text-6xl text-gray-300 block mb-4"></i>
+                <p className="text-gray-500 text-lg font-medium mb-1">Müşteri bulunamadı</p>
+                <p className="text-gray-400 text-sm mb-4">
+                  {searchQuery || roleFilter !== 'Tümü'
+                    ? 'Arama veya filtre kriterlerinize uygun müşteri yok.'
+                    : 'Henüz kayıtlı müşteri bulunmuyor.'}
+                </p>
+                {(searchQuery || roleFilter !== 'Tümü') && (
+                  <button
+                    onClick={() => { setSearchQuery(''); setRoleFilter('Tümü'); }}
+                    className="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 transition-colors cursor-pointer"
+                  >
+                    Filtreyi Temizle
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -324,7 +386,7 @@ export default function AdminCustomersPage() {
                   <h3 className="text-lg font-bold text-gray-900 mb-4">Rezervasyon Geçmişi</h3>
                   <div className="space-y-3">
                     {customerReservations.length > 0 ? (
-                      customerReservations.map((reservation: any, idx: number) => (
+                      customerReservations.map((reservation, idx) => (
                         <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
                           <div>
                             <p className="font-semibold text-gray-900">{reservation.route}</p>
@@ -353,7 +415,6 @@ export default function AdminCustomersPage() {
             </div>
           </div>
         )}
-      </AdminLayout>
-    </AdminGuard>
+    </AdminLayout>
   );
 }

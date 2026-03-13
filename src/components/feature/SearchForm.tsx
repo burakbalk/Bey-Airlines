@@ -448,7 +448,7 @@ export function useSearchForm(initialData?: Partial<SearchFormData>) {
     if (!available.find(c => c.name === formData.to)) {
       setFormData((prev) => ({ ...prev, to: available[0]?.name || 'Dubai' }));
     }
-  }, [formData.from]);
+  }, [formData.from, formData.to]);
 
   useEffect(() => {
     if (formData.departDate && formData.returnDate && formData.returnDate < formData.departDate) {

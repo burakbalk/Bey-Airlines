@@ -1,23 +1,128 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
+import { supabase } from '../../lib/supabase';
+import { usePageTitle } from '../../hooks/usePageTitle';
+
+interface ReservationData {
+  id: string;
+  pnr: string;
+  flight_number: string;
+  flight_date: string;
+  flight_time: string;
+  route: string;
+  flight_class: string;
+  status: string;
+  passengers: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    seat_number: string;
+    passenger_type: string;
+    checked_in: boolean;
+  }[];
+  flights: {
+    from_city: string;
+    to_city: string;
+    from_code: string;
+    to_code: string;
+    departure_time: string;
+    arrival_time: string;
+    duration: string;
+    gate: string | null;
+    terminal: string | null;
+  } | null;
+}
 
 export default function CheckInPage() {
-  const [step, setStep] = useState<'form' | 'success'>('form');
+  usePageTitle('Online Check-in');
+  const [step, setStep] = useState<'form' | 'success' | 'already'>('form');
   const [formData, setFormData] = useState({ pnr: '', surname: '' });
-  const [selectedSeat, setSelectedSeat] = useState('12A');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [reservation, setReservation] = useState<ReservationData | null>(null);
+  const [checkedInPassenger, setCheckedInPassenger] = useState<ReservationData['passengers'][0] | null>(null);
 
-  const handleCheckIn = (e: React.FormEvent) => {
+  const handleCheckIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.pnr && formData.surname) setStep('success');
+    setError(null);
+    setLoading(true);
+
+    const pnr = formData.pnr.trim().toUpperCase();
+    const surname = formData.surname.trim().toUpperCase();
+
+    // Supabase'den PNR ile rezervasyon çek (SECURITY DEFINER RPC — misafir erişimi destekler)
+    // Passengers ve flight bilgilerini de içerir, ayrı sorgu gerekmez.
+    const { data, error: queryError } = await supabase
+      .rpc('get_reservation_by_pnr', { p_pnr: pnr });
+
+    setLoading(false);
+
+    if (queryError || !data) {
+      setError('Rezervasyon bulunamadı. PNR kodunuzu ve soyadınızı kontrol edin.');
+      return;
+    }
+
+    const res = data as unknown as ReservationData;
+
+    // Soyadı kontrolü — yolculardan biri eşleşiyor mu?
+    const matchingPassenger = res.passengers?.find(
+      p => p.last_name.toUpperCase() === surname
+    );
+    if (!matchingPassenger) {
+      setError('Soyad bilgisi bu rezervasyonla eşleşmiyor.');
+      return;
+    }
+
+    // 24 saat kontrolü
+    const flightDateStr = res.flight_date;
+    const flightTimeStr = res.flights?.departure_time || res.flight_time || '00:00';
+    const flightDateTime = new Date(`${flightDateStr}T${flightTimeStr}`);
+    const now = new Date();
+    const diffMs = flightDateTime.getTime() - now.getTime();
+    const diffHours = diffMs / (1000 * 60 * 60);
+
+    if (diffHours > 24) {
+      const hoursLeft = Math.floor(diffHours - 24);
+      setError(
+        `Check-in henüz açılmadı. Check-in, uçuştan 24 saat önce başlar. ` +
+        `Yaklaşık ${hoursLeft} saat sonra tekrar deneyebilirsiniz.`
+      );
+      return;
+    }
+
+    if (diffHours < 1) {
+      setError('Check-in süresi dolmuştur. Uçuşa 1 saatten az kaldı. Lütfen havalimanı check-in kontuarını kullanın.');
+      return;
+    }
+
+    // Çift check-in kontrolü
+    if (matchingPassenger.checked_in) {
+      setReservation(res);
+      setCheckedInPassenger(matchingPassenger);
+      setStep('already');
+      return;
+    }
+
+    // Check-in durumunu DB'ye kaydet
+    await supabase
+      .from('passengers')
+      .update({ checked_in: true })
+      .eq('id', matchingPassenger.id);
+
+    setReservation(res);
+    setCheckedInPassenger(matchingPassenger);
+    setStep('success');
   };
 
-  const seats = Array.from({ length: 30 }, (_, i) => {
-    const row = Math.floor(i / 6) + 1;
-    const letter = ['A', 'B', 'C', 'D', 'E', 'F'][i % 6];
-    const isOccupied = [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 3, 7, 13, 19, 25].includes(i);
-    return { number: `${row}${letter}`, occupied: isOccupied };
-  });
+  const flight = reservation?.flights;
+  const fromCode = flight?.from_code || reservation?.route?.split(' → ')[0]?.substring(0, 3) || 'IST';
+  const toCode = flight?.to_code || reservation?.route?.split(' → ')[1]?.substring(0, 3) || 'DXB';
+  const fromCity = flight?.from_city || reservation?.route?.split(' → ')[0] || '';
+  const toCity = flight?.to_city || reservation?.route?.split(' → ')[1] || '';
+  const depTime = (flight?.departure_time || reservation?.flight_time || '').slice(0, 5);
+  const arrTime = (flight?.arrival_time || '').slice(0, 5);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -33,7 +138,7 @@ export default function CheckInPage() {
           <h1 className="text-3xl sm:text-5xl font-bold text-white mb-4">Online Check-in</h1>
           <p className="text-xl text-red-100">PNR kodunuz ve soyadınızla hızlıca check-in yapın</p>
           <div className="flex items-center justify-center flex-wrap gap-2 sm:gap-8 mt-8">
-            {['Hızlı İşlem', 'Dijital Biniş Kartı', 'Koltuk Seçimi'].map((item, i) => (
+            {['Hızlı İşlem', 'Dijital Biniş Kartı', 'Uçuştan 24 Saat Önce Açılır'].map((item, i) => (
               <div key={i} className="flex items-center gap-2 text-white/90 text-sm">
                 <i className="ri-check-line text-red-200"></i>
                 <span>{item}</span>
@@ -49,6 +154,14 @@ export default function CheckInPage() {
             <div className="bg-white rounded-2xl shadow-2xl p-10 border border-gray-100">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Rezervasyon Bilgileriniz</h2>
               <p className="text-gray-500 text-sm mb-8">Biletinizde yazan PNR kodu ve soyadınızı girin</p>
+
+              {error && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
+                  <i className="ri-error-warning-line text-xl text-red-600 mt-0.5"></i>
+                  <p className="text-red-700 text-sm">{error}</p>
+                </div>
+              )}
+
               <form onSubmit={handleCheckIn}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6 mb-6">
                   <div>
@@ -57,8 +170,8 @@ export default function CheckInPage() {
                       type="text"
                       value={formData.pnr}
                       onChange={(e) => setFormData({ ...formData, pnr: e.target.value.toUpperCase() })}
-                      placeholder="ABC123"
-                      maxLength={6}
+                      placeholder="BEYABC123"
+                      maxLength={9}
                       className="w-full h-14 px-4 border-2 border-gray-200 rounded-xl text-lg font-semibold uppercase focus:outline-none focus:border-red-500 transition-colors"
                       required
                     />
@@ -68,7 +181,7 @@ export default function CheckInPage() {
                     <input
                       type="text"
                       value={formData.surname}
-                      onChange={(e) => setFormData({ ...formData, surname: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, surname: e.target.value.toUpperCase() })}
                       placeholder="YILMAZ"
                       className="w-full h-14 px-4 border-2 border-gray-200 rounded-xl text-lg focus:outline-none focus:border-red-500 transition-colors"
                       required
@@ -77,17 +190,27 @@ export default function CheckInPage() {
                 </div>
                 <button
                   type="submit"
-                  className="w-full h-14 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-colors text-lg whitespace-nowrap cursor-pointer shadow-lg shadow-red-200"
+                  disabled={loading}
+                  className="w-full h-14 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-bold rounded-xl transition-colors text-lg whitespace-nowrap cursor-pointer shadow-lg shadow-red-200 flex items-center justify-center gap-2"
                 >
-                  <i className="ri-checkbox-circle-line mr-2"></i>Check-in Yap
+                  {loading ? (
+                    <>
+                      <i className="ri-loader-4-line animate-spin"></i>
+                      Aranıyor...
+                    </>
+                  ) : (
+                    <>
+                      <i className="ri-checkbox-circle-line"></i>
+                      Check-in Yap
+                    </>
+                  )}
                 </button>
                 <p className="text-center text-sm text-gray-400 mt-5">
                   Rezervasyon bulamıyor musunuz?{' '}
-                  <a href="/yardim" className="text-red-600 hover:underline font-medium">Yardım alın</a>
+                  <Link to="/yardim" className="text-red-600 hover:underline font-medium">Yardım alın</Link>
                 </p>
               </form>
 
-              {/* Info Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mt-8 pt-8 border-t border-gray-100">
                 {[
                   { icon: 'ri-time-line', title: 'Ne Zaman?', desc: 'Uçuştan 24 saat önce açılır' },
@@ -105,53 +228,73 @@ export default function CheckInPage() {
               </div>
             </div>
           </div>
-        ) : (
+        ) : reservation && checkedInPassenger ? (
           <div className="max-w-5xl mx-auto px-4 sm:px-8 -mt-10 relative z-10">
-            {/* Success Banner */}
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center gap-3 shadow-sm">
-              <div className="w-10 h-10 flex items-center justify-center bg-green-100 rounded-full">
-                <i className="ri-check-line text-2xl text-green-600"></i>
+            {step === 'already' ? (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex items-center gap-3 shadow-sm">
+                <div className="w-10 h-10 flex items-center justify-center bg-blue-100 rounded-full">
+                  <i className="ri-information-line text-2xl text-blue-600"></i>
+                </div>
+                <div>
+                  <p className="text-blue-800 font-bold">Zaten check-in yaptınız</p>
+                  <p className="text-blue-600 text-sm">Biniş kartınız aşağıda görüntülenmektedir.</p>
+                </div>
               </div>
-              <div>
-                <p className="text-green-800 font-bold">Check-in başarıyla tamamlandı!</p>
-                <p className="text-green-600 text-sm">Biniş kartınız hazır. İyi uçuşlar dileriz.</p>
+            ) : (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center gap-3 shadow-sm">
+                <div className="w-10 h-10 flex items-center justify-center bg-green-100 rounded-full">
+                  <i className="ri-check-line text-2xl text-green-600"></i>
+                </div>
+                <div>
+                  <p className="text-green-800 font-bold">Check-in başarıyla tamamlandı!</p>
+                  <p className="text-green-600 text-sm">Biniş kartınız hazır. İyi uçuşlar dileriz.</p>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left: Flight Info + Seat Map */}
+              {/* Sol: Uçuş Bilgisi */}
               <div className="lg:col-span-2 space-y-6">
-                {/* Flight Info */}
                 <div className="bg-white rounded-2xl shadow-md p-3 sm:p-6 border border-gray-100">
                   <div className="flex items-center justify-between mb-6">
                     <div>
-                      <h3 className="text-2xl font-bold text-gray-900">AHMET YILMAZ</h3>
-                      <p className="text-gray-500 mt-1">Uçuş: <span className="font-semibold text-red-600">BY1101</span> · 15 Haziran 2024</p>
+                      <h3 className="text-2xl font-bold text-gray-900">
+                        {checkedInPassenger.first_name} {checkedInPassenger.last_name}
+                      </h3>
+                      <p className="text-gray-500 mt-1">
+                        Uçuş: <span className="font-semibold text-red-600">{reservation.flight_number}</span>
+                        {' · '}
+                        {new Date(reservation.flight_date).toLocaleDateString('tr-TR', {
+                          day: 'numeric', month: 'long', year: 'numeric'
+                        })}
+                      </p>
                     </div>
                     <div className="text-right bg-red-50 px-5 py-3 rounded-xl">
                       <p className="text-xs text-gray-500 mb-1">Koltuk</p>
-                      <p className="text-2xl sm:text-4xl font-black text-red-600">{selectedSeat}</p>
+                      <p className="text-2xl sm:text-4xl font-black text-red-600">
+                        {checkedInPassenger.seat_number || '-'}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between bg-gray-50 rounded-xl p-4">
                     <div className="text-center">
-                      <p className="text-2xl font-bold text-gray-900">İSTANBUL</p>
-                      <p className="text-sm text-gray-500 mt-1">IST · 06:30</p>
+                      <p className="text-2xl font-bold text-gray-900">{fromCity.toUpperCase()}</p>
+                      <p className="text-sm text-gray-500 mt-1">{fromCode} · {depTime}</p>
                     </div>
                     <div className="flex flex-col items-center gap-1">
                       <i className="ri-flight-takeoff-line text-2xl text-red-600"></i>
-                      <p className="text-xs text-gray-400">4s 30dk</p>
+                      <p className="text-xs text-gray-400">{flight?.duration || ''}</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-2xl font-bold text-gray-900">DUBAİ</p>
-                      <p className="text-sm text-gray-500 mt-1">DXB · 11:00</p>
+                      <p className="text-2xl font-bold text-gray-900">{toCity.toUpperCase()}</p>
+                      <p className="text-sm text-gray-500 mt-1">{toCode} · {arrTime}</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mt-4">
                     {[
-                      { label: 'Kapı', value: 'A12' },
-                      { label: 'Terminal', value: 'Terminal 1' },
-                      { label: 'Bagaj', value: '20 kg' },
+                      { label: 'Kapı', value: flight?.gate || '-' },
+                      { label: 'Terminal', value: flight?.terminal ? `Terminal ${flight.terminal}` : '-' },
+                      { label: 'Sınıf', value: reservation.flight_class === 'vip' ? 'VIP' : 'Ekonomi' },
                     ].map((item, i) => (
                       <div key={i} className="text-center p-3 border border-gray-100 rounded-lg">
                         <p className="text-xs text-gray-500">{item.label}</p>
@@ -159,45 +302,27 @@ export default function CheckInPage() {
                       </div>
                     ))}
                   </div>
-                </div>
 
-                {/* Seat Map */}
-                <div className="bg-white rounded-2xl shadow-md p-3 sm:p-6 border border-gray-100">
-                  <h3 className="text-lg font-bold text-gray-900 mb-5">Koltuk Seçimi</h3>
-                  <div className="flex justify-center gap-2 sm:gap-6 text-sm mb-6">
-                    {[
-                      { color: 'bg-gray-200', label: 'Boş' },
-                      { color: 'bg-red-600', label: 'Dolu' },
-                      { color: 'bg-red-500 ring-2 ring-red-300', label: 'Seçili' },
-                    ].map((item, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <div className={`w-6 h-6 rounded-md ${item.color}`}></div>
-                        <span className="text-gray-600">{item.label}</span>
+                  {/* Diğer yolcular */}
+                  {reservation.passengers.length > 1 && (
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <p className="text-sm font-semibold text-gray-700 mb-2">Diğer Yolcular</p>
+                      <div className="space-y-1">
+                        {reservation.passengers
+                          .filter(p => p.last_name !== checkedInPassenger.last_name || p.first_name !== checkedInPassenger.first_name)
+                          .map((p, i) => (
+                            <div key={i} className="flex justify-between text-sm text-gray-600">
+                              <span>{p.first_name} {p.last_name}</span>
+                              <span className="font-semibold">{p.seat_number || '-'}</span>
+                            </div>
+                          ))}
                       </div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-6 gap-1 sm:gap-2 max-w-xs mx-auto">
-                    {seats.map((seat) => (
-                      <button
-                        key={seat.number}
-                        onClick={() => !seat.occupied && setSelectedSeat(seat.number)}
-                        disabled={seat.occupied}
-                        className={`aspect-square rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
-                          seat.occupied
-                            ? 'bg-red-600 text-white cursor-not-allowed opacity-70'
-                            : selectedSeat === seat.number
-                            ? 'bg-red-500 text-white ring-2 ring-red-300 scale-110'
-                            : 'bg-gray-200 text-gray-700 hover:bg-red-100 hover:text-red-700 cursor-pointer'
-                        }`}
-                      >
-                        {seat.number}
-                      </button>
-                    ))}
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Right: Boarding Pass */}
+              {/* Sağ: Biniş Kartı */}
               <div className="lg:col-span-1">
                 <div className="bg-white rounded-2xl shadow-md p-3 sm:p-6 sticky top-24 border border-gray-100">
                   <h3 className="text-lg font-bold text-gray-900 mb-5 text-center">Dijital Biniş Kartı</h3>
@@ -215,12 +340,13 @@ export default function CheckInPage() {
                     </div>
                     <div className="space-y-2.5 text-sm">
                       {[
-                        { label: 'Yolcu', value: 'AHMET YILMAZ' },
-                        { label: 'Uçuş', value: 'BY1101' },
-                        { label: 'Tarih', value: '15 HAZ 2024' },
-                        { label: 'Kalkış', value: '06:30' },
-                        { label: 'Kapı', value: 'A12' },
-                        { label: 'Koltuk', value: selectedSeat },
+                        { label: 'Yolcu', value: `${checkedInPassenger.first_name} ${checkedInPassenger.last_name}` },
+                        { label: 'PNR', value: reservation.pnr },
+                        { label: 'Uçuş', value: reservation.flight_number },
+                        { label: 'Tarih', value: new Date(reservation.flight_date).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase() },
+                        { label: 'Kalkış', value: depTime },
+                        { label: 'Kapı', value: flight?.gate || '-' },
+                        { label: 'Koltuk', value: checkedInPassenger.seat_number || '-' },
                       ].map((item, i) => (
                         <div key={i} className="flex justify-between items-center border-b border-white/10 pb-2">
                           <span className="text-red-200 text-xs">{item.label}</span>
@@ -230,10 +356,18 @@ export default function CheckInPage() {
                     </div>
                   </div>
                   <div className="mt-5 space-y-3">
-                    <button className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-semibold transition-colors whitespace-nowrap cursor-pointer shadow-md shadow-red-100">
+                    <button
+                      type="button"
+                      onClick={() => alert('Bu özellik yakında aktif olacaktır.')}
+                      className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-semibold transition-colors whitespace-nowrap cursor-pointer shadow-md shadow-red-100"
+                    >
                       <i className="ri-download-line mr-2"></i>Biniş Kartını İndir
                     </button>
-                    <button className="w-full border-2 border-red-200 text-red-600 hover:bg-red-50 py-3 rounded-xl font-semibold transition-colors whitespace-nowrap cursor-pointer">
+                    <button
+                      type="button"
+                      onClick={() => alert('Bu özellik yakında aktif olacaktır.')}
+                      className="w-full border-2 border-red-200 text-red-600 hover:bg-red-50 py-3 rounded-xl font-semibold transition-colors whitespace-nowrap cursor-pointer"
+                    >
                       <i className="ri-mail-send-line mr-2"></i>E-posta Gönder
                     </button>
                   </div>
@@ -241,7 +375,7 @@ export default function CheckInPage() {
               </div>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
 
       <Footer />

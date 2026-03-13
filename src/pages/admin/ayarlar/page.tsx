@@ -1,17 +1,63 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import AdminLayout from '../../../components/admin/AdminLayout';
+import { supabase } from '../../../lib/supabase';
+
+const SETTINGS_KEY = 'admin_settings';
+
+const defaultGeneralSettings = {
+  siteName: 'BeyAir Havayolları',
+  contactEmail: 'info@beyair.com',
+  contactPhone: '+90 850 123 4567',
+  supportEmail: 'destek@beyair.com',
+  address: 'Atatürk Havalimanı, Terminal 1, İstanbul'
+};
+
+const defaultNotifications = {
+  emailNewReservation: true,
+  emailCancellation: true,
+  emailNewMessage: true,
+  emailLowStock: false,
+  smsNewReservation: false,
+  smsCancellation: true
+};
+
+const defaultFlightMessages = {
+  onTime: 'Uçuşunuz zamanında kalkacaktır.',
+  delayed: 'Uçuşunuz gecikmiştir. Lütfen bilgi ekranlarını takip edin.',
+  cancelled: 'Uçuşunuz iptal edilmiştir. Lütfen gişelerimize başvurun.',
+  boarding: 'Uçuşunuz için biniş başlamıştır. Lütfen kapıya geçin.',
+  departed: 'Uçuşunuz kalkış yapmıştır.'
+};
+
+function loadFromStorage<T>(key: string, defaults: T): T {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed[key]) return { ...defaults, ...parsed[key] };
+    }
+  } catch {}
+  return defaults;
+}
+
+function saveToStorage(key: string, value: unknown) {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    const current = raw ? JSON.parse(raw) : {};
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...current, [key]: value }));
+  } catch {}
+}
 
 export default function AdminSettingsPage() {
   const [activeTab, setActiveTab] = useState<'general' | 'password' | 'notifications' | 'messages'>('general');
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   // Genel Ayarlar
-  const [generalSettings, setGeneralSettings] = useState({
-    siteName: 'BeyAir Havayolları',
-    contactEmail: 'info@beyair.com',
-    contactPhone: '+90 850 123 4567',
-    supportEmail: 'destek@beyair.com',
-    address: 'Atatürk Havalimanı, Terminal 1, İstanbul'
-  });
+  const [generalSettings, setGeneralSettings] = useState(() =>
+    loadFromStorage('general', defaultGeneralSettings)
+  );
+  const [savingGeneral, setSavingGeneral] = useState(false);
 
   // Şifre Değiştirme
   const [passwordData, setPasswordData] = useState({
@@ -19,71 +65,143 @@ export default function AdminSettingsPage() {
     newPassword: '',
     confirmPassword: ''
   });
+  const [savingPassword, setSavingPassword] = useState(false);
 
   // Bildirim Tercihleri
-  const [notifications, setNotifications] = useState({
-    emailNewReservation: true,
-    emailCancellation: true,
-    emailNewMessage: true,
-    emailLowStock: false,
-    smsNewReservation: false,
-    smsCancellation: true
-  });
+  const [notifications, setNotifications] = useState(() =>
+    loadFromStorage('notifications', defaultNotifications)
+  );
+  const [savingNotifications, setSavingNotifications] = useState(false);
 
   // Uçuş Durumu Mesajları
-  const [flightMessages, setFlightMessages] = useState({
-    onTime: 'Uçuşunuz zamanında kalkacaktır.',
-    delayed: 'Uçuşunuz gecikmiştir. Lütfen bilgi ekranlarını takip edin.',
-    cancelled: 'Uçuşunuz iptal edilmiştir. Lütfen gişelerimize başvurun.',
-    boarding: 'Uçuşunuz için biniş başlamıştır. Lütfen kapıya geçin.',
-    departed: 'Uçuşunuz kalkış yapmıştır.'
-  });
+  const [flightMessages, setFlightMessages] = useState(() =>
+    loadFromStorage('flightMessages', defaultFlightMessages)
+  );
+  const [savingMessages, setSavingMessages] = useState(false);
 
-  const handleSaveGeneral = () => {
-    setShowSuccessMessage(true);
-    setTimeout(() => setShowSuccessMessage(false), 3000);
+  useEffect(() => {
+    if (successMessage) {
+      const t = setTimeout(() => setSuccessMessage(''), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [successMessage]);
+
+  useEffect(() => {
+    if (errorMessage) {
+      const t = setTimeout(() => setErrorMessage(''), 5000);
+      return () => clearTimeout(t);
+    }
+  }, [errorMessage]);
+
+  const handleSaveGeneral = async () => {
+    setSavingGeneral(true);
+    try {
+      saveToStorage('general', generalSettings);
+      setSuccessMessage('Genel ayarlar kaydedildi.');
+    } finally {
+      setSavingGeneral(false);
+    }
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
+    setErrorMessage('');
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('Yeni şifreler eşleşmiyor!');
+      setErrorMessage('Yeni şifreler eşleşmiyor!');
       return;
     }
     if (passwordData.newPassword.length < 6) {
-      alert('Şifre en az 6 karakter olmalıdır!');
+      setErrorMessage('Şifre en az 6 karakter olmalıdır!');
       return;
     }
-    setShowSuccessMessage(true);
-    setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    setTimeout(() => setShowSuccessMessage(false), 3000);
+
+    setSavingPassword(true);
+    try {
+      // Mevcut şifreyi doğrula
+      const { data: userData } = await supabase.auth.getUser();
+      const userEmail = userData?.user?.email;
+
+      if (!userEmail) {
+        setErrorMessage('Kullanıcı bilgisi alınamadı.');
+        return;
+      }
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: userEmail,
+        password: passwordData.currentPassword
+      });
+
+      if (signInError) {
+        setErrorMessage('Mevcut şifre hatalı!');
+        return;
+      }
+
+      // Şifreyi güncelle
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: passwordData.newPassword
+      });
+
+      if (updateError) {
+        setErrorMessage('Şifre güncellenirken hata oluştu: ' + updateError.message);
+        return;
+      }
+
+      setSuccessMessage('Şifreniz başarıyla güncellendi.');
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } finally {
+      setSavingPassword(false);
+    }
   };
 
-  const handleSaveNotifications = () => {
-    setShowSuccessMessage(true);
-    setTimeout(() => setShowSuccessMessage(false), 3000);
+  const handleSaveNotifications = async () => {
+    setSavingNotifications(true);
+    try {
+      saveToStorage('notifications', notifications);
+      setSuccessMessage('Bildirim tercihleri kaydedildi.');
+    } finally {
+      setSavingNotifications(false);
+    }
   };
 
-  const handleSaveMessages = () => {
-    setShowSuccessMessage(true);
-    setTimeout(() => setShowSuccessMessage(false), 3000);
+  const handleSaveMessages = async () => {
+    setSavingMessages(true);
+    try {
+      saveToStorage('flightMessages', flightMessages);
+      setSuccessMessage('Uçuş mesajları kaydedildi.');
+    } finally {
+      setSavingMessages(false);
+    }
   };
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Sistem Ayarları</h1>
-        <p className="text-gray-600">Genel sistem ayarlarını yönetin</p>
-      </div>
+    <AdminLayout>
+        <div>
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Sistem Ayarları</h1>
+            <p className="text-gray-600">Genel sistem ayarlarını yönetin</p>
+          </div>
 
       {/* Başarı Mesajı */}
-      {showSuccessMessage && (
+      {successMessage && (
         <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
           <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
             <i className="ri-check-line text-xl text-green-600"></i>
           </div>
           <div>
             <p className="font-semibold text-green-900">Başarılı!</p>
-            <p className="text-sm text-green-700">Ayarlarınız kaydedildi.</p>
+            <p className="text-sm text-green-700">{successMessage}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Hata Mesajı */}
+      {errorMessage && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
+          <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+            <i className="ri-error-warning-line text-xl text-red-600"></i>
+          </div>
+          <div>
+            <p className="font-semibold text-red-900">Hata!</p>
+            <p className="text-sm text-red-700">{errorMessage}</p>
           </div>
         </div>
       )}
@@ -144,7 +262,7 @@ export default function AdminSettingsPage() {
           {activeTab === 'general' && (
             <div className="max-w-2xl">
               <h3 className="text-lg font-bold text-gray-900 mb-6">Genel Bilgiler</h3>
-              
+
               <div className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -208,10 +326,20 @@ export default function AdminSettingsPage() {
 
                 <button
                   onClick={handleSaveGeneral}
-                  className="w-full bg-red-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-red-700 transition-colors whitespace-nowrap"
+                  disabled={savingGeneral}
+                  className="w-full bg-red-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-red-700 transition-colors whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  <i className="ri-save-line mr-2"></i>
-                  Değişiklikleri Kaydet
+                  {savingGeneral ? (
+                    <>
+                      <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                      Kaydediliyor...
+                    </>
+                  ) : (
+                    <>
+                      <i className="ri-save-line"></i>
+                      Değişiklikleri Kaydet
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -221,7 +349,7 @@ export default function AdminSettingsPage() {
           {activeTab === 'password' && (
             <div className="max-w-2xl">
               <h3 className="text-lg font-bold text-gray-900 mb-6">Şifre Değiştir</h3>
-              
+
               <div className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -262,10 +390,20 @@ export default function AdminSettingsPage() {
 
                 <button
                   onClick={handleChangePassword}
-                  className="w-full bg-red-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-red-700 transition-colors whitespace-nowrap"
+                  disabled={savingPassword}
+                  className="w-full bg-red-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-red-700 transition-colors whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  <i className="ri-lock-password-line mr-2"></i>
-                  Şifreyi Değiştir
+                  {savingPassword ? (
+                    <>
+                      <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                      Güncelleniyor...
+                    </>
+                  ) : (
+                    <>
+                      <i className="ri-lock-password-line"></i>
+                      Şifreyi Değiştir
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -275,7 +413,7 @@ export default function AdminSettingsPage() {
           {activeTab === 'notifications' && (
             <div className="max-w-2xl">
               <h3 className="text-lg font-bold text-gray-900 mb-6">Bildirim Tercihleri</h3>
-              
+
               <div className="space-y-6">
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-4">E-posta Bildirimleri</h4>
@@ -345,10 +483,20 @@ export default function AdminSettingsPage() {
 
                 <button
                   onClick={handleSaveNotifications}
-                  className="w-full bg-red-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-red-700 transition-colors whitespace-nowrap"
+                  disabled={savingNotifications}
+                  className="w-full bg-red-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-red-700 transition-colors whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  <i className="ri-save-line mr-2"></i>
-                  Tercihleri Kaydet
+                  {savingNotifications ? (
+                    <>
+                      <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                      Kaydediliyor...
+                    </>
+                  ) : (
+                    <>
+                      <i className="ri-save-line"></i>
+                      Tercihleri Kaydet
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -358,7 +506,7 @@ export default function AdminSettingsPage() {
           {activeTab === 'messages' && (
             <div className="max-w-2xl">
               <h3 className="text-lg font-bold text-gray-900 mb-6">Uçuş Durumu Varsayılan Mesajları</h3>
-              
+
               <div className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -427,16 +575,27 @@ export default function AdminSettingsPage() {
 
                 <button
                   onClick={handleSaveMessages}
-                  className="w-full bg-red-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-red-700 transition-colors whitespace-nowrap"
+                  disabled={savingMessages}
+                  className="w-full bg-red-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-red-700 transition-colors whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  <i className="ri-save-line mr-2"></i>
-                  Mesajları Kaydet
+                  {savingMessages ? (
+                    <>
+                      <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                      Kaydediliyor...
+                    </>
+                  ) : (
+                    <>
+                      <i className="ri-save-line"></i>
+                      Mesajları Kaydet
+                    </>
+                  )}
                 </button>
               </div>
             </div>
           )}
         </div>
-      </div>
-    </div>
+        </div>
+        </div>
+      </AdminLayout>
   );
 }

@@ -2,27 +2,61 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
+import BookingStepper from '../../components/feature/BookingStepper';
 import { useCreateReservation } from '../../hooks/useReservations';
+import { usePageTitle } from '../../hooks/usePageTitle';
+import { supabase } from '../../lib/supabase';
+
+interface Passenger {
+  firstName: string;
+  lastName: string;
+  tcNo: string;
+  birthDate: string;
+  gender: string;
+  type: 'adult' | 'child' | 'infant';
+}
+
+interface ContactInfo {
+  email: string;
+  phone: string;
+}
+
+interface Seat {
+  seatId: string;
+  price: number;
+}
+
+interface ExtraServices {
+  baggagePrice?: number;
+  meal?: string;
+  insurance?: boolean;
+  mealPrice?: number;
+  priorityBoarding?: boolean;
+}
 
 interface BookingData {
   flightId: string;
+  flightNumber: string;
+  flightTime: string;
+  flightClass: string;
+  duration: string;
   from: string;
   to: string;
   date: string;
   price: string;
-  passengers: any[];
-  contactInfo: any;
-  seats: any[];
-  extraServices: any;
+  passengers: Passenger[];
+  contactInfo: ContactInfo;
+  seats: Seat[];
+  extraServices: ExtraServices;
 }
 
 const PaymentPage = () => {
+  usePageTitle('Ödeme');
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { create: createReservation } = useCreateReservation();
 
   const [bookingData, setBookingData] = useState<BookingData | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
   const [cardNumber, setCardNumber] = useState('');
@@ -38,14 +72,15 @@ const PaymentPage = () => {
   useEffect(() => {
     const data = sessionStorage.getItem('bookingData');
     if (data) {
-      setBookingData(JSON.parse(data));
+      try {
+        setBookingData(JSON.parse(data));
+      } catch {
+        navigate('/');
+      }
     } else {
       navigate('/');
     }
 
-    // Mock login check
-    const loggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
-    setIsLoggedIn(loggedIn);
   }, [navigate]);
 
   if (!bookingData) return null;
@@ -57,7 +92,7 @@ const PaymentPage = () => {
 
   const flightTotal = basePrice * adultCount + basePrice * 0.75 * childCount + basePrice * 0.1 * infantCount;
   
-  const seatTotal = bookingData.seats?.reduce((sum: number, seat: any) => sum + (seat.price || 0), 0) || 0;
+  const seatTotal = bookingData.seats?.reduce((sum: number, seat: Seat) => sum + (seat.price || 0), 0) || 0;
 
   const baggageTotal = bookingData.extraServices?.baggagePrice || 0;
   const mealTotal = bookingData.extraServices?.mealPrice || 0;
@@ -105,19 +140,19 @@ const PaymentPage = () => {
     // Validasyon
     setPaymentError(null);
     if (!cardNumber || cardNumber.replace(/\s/g, '').length !== 16) {
-      alert('Lütfen geçerli bir kart numarası giriniz');
+      setPaymentError('Lütfen geçerli bir kart numarası giriniz (16 hane).');
       return;
     }
     if (!cardName) {
-      alert('Lütfen kart üzerindeki ismi giriniz');
+      setPaymentError('Lütfen kart üzerindeki ismi giriniz.');
       return;
     }
     if (!expiryDate || expiryDate.length !== 5) {
-      alert('Lütfen geçerli bir son kullanma tarihi giriniz');
+      setPaymentError('Lütfen geçerli bir son kullanma tarihi giriniz (AA/YY).');
       return;
     }
     if (!cvv || cvv.length !== 3) {
-      alert('Lütfen geçerli bir CVV kodu giriniz');
+      setPaymentError('Lütfen geçerli bir CVV kodu giriniz (3 hane).');
       return;
     }
 
@@ -129,8 +164,9 @@ const PaymentPage = () => {
       'Dubai': 'DXB', 'Trabzon': 'TZX', 'Bodrum': 'BJV', 'Dalaman': 'DLM'
     };
 
-    const flightNumber = 'BEY ' + Math.floor(100 + Math.random() * 900);
-    const flightTime = '14:30';
+    const flightNumber = bookingData.flightNumber || `BEY${bookingData.flightId}`;
+    const flightTime = bookingData.flightTime || '00:00';
+    const flightClassLabel = bookingData.flightClass === 'vip' ? 'VIP' : 'Ekonomi';
 
     // Create reservation via Supabase
     const { pnr, error } = await createReservation({
@@ -139,7 +175,7 @@ const PaymentPage = () => {
       route: `${bookingData.from} → ${bookingData.to}`,
       flightDate: bookingData.date,
       flightTime,
-      flightClass: 'Ekonomi',
+      flightClass: flightClassLabel,
       totalPrice: Math.round(finalTotal),
       contactEmail: bookingData.contactInfo?.email || '',
       contactPhone: bookingData.contactInfo?.phone || '',
@@ -151,7 +187,7 @@ const PaymentPage = () => {
       },
       paymentMethod: 'credit_card',
       paymentCardLast4: cardNumber.slice(-4),
-      passengers: bookingData.passengers.map((p: any, i: number) => ({
+      passengers: bookingData.passengers.map((p: Passenger, i: number) => ({
         first_name: p.firstName,
         last_name: p.lastName,
         tc_no: p.tcNo,
@@ -179,10 +215,10 @@ const PaymentPage = () => {
         date: bookingData.date,
         time: flightTime,
         flightNumber,
-        duration: '2s 15dk',
+        duration: bookingData.duration || '',
         airline: 'Bey Airlines'
       },
-      passengers: bookingData.passengers.map((p: any, i: number) => ({
+      passengers: bookingData.passengers.map((p: Passenger, i: number) => ({
         firstName: p.firstName,
         lastName: p.lastName,
         tcNo: p.tcNo,
@@ -212,6 +248,25 @@ const PaymentPage = () => {
     };
 
     sessionStorage.setItem('completedBooking', JSON.stringify(reservationData));
+    sessionStorage.removeItem('bookingData');
+
+    // Otomatik onay e-postası gönder (fire-and-forget — hata kullanıcıyı bloklamaz)
+    supabase.functions.invoke('send-reservation-email', {
+      body: {
+        pnr,
+        email: bookingData.contactInfo?.email || '',
+        flight: reservationData.flight,
+        passengers: reservationData.passengers.map((p) => ({
+          firstName: p.firstName,
+          lastName: p.lastName,
+          tcNo: p.tcNo,
+          seatNumber: p.seatNumber,
+        })),
+        extras: reservationData.extras,
+        payment: { total: reservationData.payment.total },
+      },
+    }).catch((err) => console.error('[PaymentPage] Onay e-postası gönderilemedi:', err));
+
     navigate(`/rezervasyon-onay/${pnr}`);
   };
 
@@ -232,66 +287,26 @@ const PaymentPage = () => {
       <Header />
       
       <main className="flex-1 pt-20">
-        {/* Progress Steps */}
-        <div className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-1 sm:space-x-3 opacity-50">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-green-600 text-white flex items-center justify-center font-semibold">
-                  <i className="ri-check-line text-lg"></i>
-                </div>
-                <div className="hidden sm:block">
-                  <div className="text-sm font-semibold text-gray-500">Yolcu Bilgileri</div>
-                  <div className="text-xs text-gray-400">Tamamlandı</div>
-                </div>
-              </div>
-
-              <div className="flex-1 h-0.5 bg-green-600 mx-1 sm:mx-4"></div>
-
-              <div className="flex items-center space-x-1 sm:space-x-3 opacity-50">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-green-600 text-white flex items-center justify-center font-semibold">
-                  <i className="ri-check-line text-lg"></i>
-                </div>
-                <div className="hidden sm:block">
-                  <div className="text-sm font-semibold text-gray-500">Koltuk Seçimi</div>
-                  <div className="text-xs text-gray-400">Tamamlandı</div>
-                </div>
-              </div>
-
-              <div className="flex-1 h-0.5 bg-green-600 mx-1 sm:mx-4"></div>
-
-              <div className="flex items-center space-x-1 sm:space-x-3 opacity-50">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-green-600 text-white flex items-center justify-center font-semibold">
-                  <i className="ri-check-line text-lg"></i>
-                </div>
-                <div className="hidden sm:block">
-                  <div className="text-sm font-semibold text-gray-500">Ek Hizmetler</div>
-                  <div className="text-xs text-gray-400">Tamamlandı</div>
-                </div>
-              </div>
-
-              <div className="flex-1 h-0.5 bg-green-600 mx-1 sm:mx-4"></div>
-
-              <div className="flex items-center space-x-1 sm:space-x-3">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-red-600 text-white flex items-center justify-center font-semibold">
-                  4
-                </div>
-                <div className="hidden sm:block">
-                  <div className="text-sm font-semibold text-red-600">Ödeme</div>
-                  <div className="text-xs text-gray-500">Ödeme ve onay</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <BookingStepper currentStep={4} />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Sol Taraf - Ödeme Formu */}
             <div className="lg:col-span-2 space-y-6">
               {/* Kart Bilgileri */}
-              <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-6">Kart Bilgileri</h2>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+                      <i className="ri-bank-card-line text-blue-600 text-lg"></i>
+                    </div>
+                    <h2 className="text-xl font-bold text-gray-900">Kart Bilgileri</h2>
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-400">
+                    <i className="ri-visa-line text-2xl text-blue-600"></i>
+                    <i className="ri-mastercard-line text-2xl text-orange-500"></i>
+                  </div>
+                </div>
                 
                 <div className="space-y-4">
                   <div>
@@ -305,6 +320,9 @@ const PaymentPage = () => {
                         onChange={handleCardNumberChange}
                         className={`w-full px-4 py-3 border ${showCardError && cardNumber.length !== 16 ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm`}
                         placeholder="1234 5678 9012 3456"
+                        aria-label="Kart numarası"
+                        autoComplete="cc-number"
+                        inputMode="numeric"
                       />
                       <div className="absolute right-3 top-1/2 -translate-y-1/2 flex space-x-1">
                         <i className="ri-visa-line text-2xl text-blue-600"></i>
@@ -323,6 +341,8 @@ const PaymentPage = () => {
                       onChange={(e) => setCardName(e.target.value.toUpperCase())}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm uppercase"
                       placeholder="AD SOYAD"
+                      aria-label="Kart üzerindeki isim"
+                      autoComplete="cc-name"
                     />
                   </div>
 
@@ -337,6 +357,9 @@ const PaymentPage = () => {
                         onChange={handleExpiryChange}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm"
                         placeholder="AA/YY"
+                        aria-label="Son kullanma tarihi"
+                        autoComplete="cc-exp"
+                        inputMode="numeric"
                       />
                     </div>
 
@@ -345,11 +368,14 @@ const PaymentPage = () => {
                         CVV <span className="text-red-600">*</span>
                       </label>
                       <input
-                        type="text"
+                        type="password"
                         value={cvv}
                         onChange={handleCvvChange}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm"
                         placeholder="123"
+                        aria-label="CVV güvenlik kodu"
+                        autoComplete="cc-csc"
+                        inputMode="numeric"
                       />
                     </div>
                   </div>
@@ -370,8 +396,13 @@ const PaymentPage = () => {
               </div>
 
               {/* Taksit Seçenekleri */}
-              <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Taksit Seçenekleri</h3>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
+                    <i className="ri-calendar-check-line text-green-600 text-lg"></i>
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900">Taksit Seçenekleri</h3>
+                </div>
                 
                 <div className="space-y-2">
                   {installmentOptions.map(option => (
@@ -411,18 +442,33 @@ const PaymentPage = () => {
               </div>
 
               {/* Güvenlik Rozetleri */}
-              <div className="bg-gray-50 rounded-xl p-4 flex items-center justify-center space-x-6">
-                <div className="flex items-center space-x-2">
-                  <i className="ri-shield-check-line text-green-600 text-xl"></i>
-                  <span className="text-sm font-medium text-gray-700">SSL Güvenli</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <i className="ri-lock-line text-blue-600 text-xl"></i>
-                  <span className="text-sm font-medium text-gray-700">3D Secure</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <i className="ri-bank-card-line text-purple-600 text-xl"></i>
-                  <span className="text-sm font-medium text-gray-700">PCI DSS</span>
+              <div className="bg-gradient-to-r from-gray-50 to-gray-50/50 rounded-2xl border border-gray-100 p-4">
+                <p className="text-xs text-gray-500 text-center mb-3 font-medium uppercase tracking-wide">Güvenli Ödeme</p>
+                <div className="flex items-center justify-center gap-6 flex-wrap">
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="w-9 h-9 bg-green-100 rounded-xl flex items-center justify-center">
+                      <i className="ri-shield-check-fill text-green-600 text-lg"></i>
+                    </div>
+                    <span className="text-xs text-gray-500 whitespace-nowrap">256-bit SSL</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center">
+                      <i className="ri-lock-fill text-blue-600 text-lg"></i>
+                    </div>
+                    <span className="text-xs text-gray-500 whitespace-nowrap">3D Secure</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="w-9 h-9 bg-purple-100 rounded-xl flex items-center justify-center">
+                      <i className="ri-bank-card-fill text-purple-600 text-lg"></i>
+                    </div>
+                    <span className="text-xs text-gray-500 whitespace-nowrap">PCI DSS</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="w-9 h-9 bg-orange-100 rounded-xl flex items-center justify-center">
+                      <i className="ri-time-fill text-orange-600 text-lg"></i>
+                    </div>
+                    <span className="text-xs text-gray-500 whitespace-nowrap">24s İptal</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -550,7 +596,7 @@ const PaymentPage = () => {
                   type="button"
                   onClick={handlePayment}
                   disabled={isProcessing}
-                  className="w-full py-4 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-semibold rounded-xl transition-colors whitespace-nowrap flex items-center justify-center space-x-2"
+                  className="w-full py-4 bg-gradient-to-r from-primary to-secondary hover:from-primary-dark hover:to-primary disabled:from-gray-400 disabled:to-gray-500 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2.5 shadow-md hover:shadow-lg disabled:shadow-none active:scale-[0.98] disabled:cursor-not-allowed"
                 >
                   {isProcessing ? (
                     <>
@@ -559,8 +605,9 @@ const PaymentPage = () => {
                     </>
                   ) : (
                     <>
-                      <i className="ri-secure-payment-line text-xl"></i>
-                      <span>Ödemeyi Tamamla</span>
+                      <i className="ri-shield-check-fill text-lg"></i>
+                      <span>Güvenli Ödeme Yap</span>
+                      <i className="ri-arrow-right-line text-lg opacity-80"></i>
                     </>
                   )}
                 </button>

@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePageTitle } from '../../hooks/usePageTitle';
 import { useUserReservations, useSavedPassengers } from '../../hooks/useReservations';
-import type { Reservation } from '../../hooks/useReservations';
+import type { Reservation, SavedPassenger } from '../../hooks/useReservations';
 import { supabase } from '../../lib/supabase';
 
 export default function AccountPage() {
+  usePageTitle('Hesabım');
   const navigate = useNavigate();
   const { user, profile: authProfile, loading: authLoading, signOut, updateProfile } = useAuth();
   const isLoggedIn = !!user;
@@ -15,7 +17,7 @@ export default function AccountPage() {
   const savedPassengersFromHook = useSavedPassengers();
 
   const [activeSection, setActiveSection] = useState<'profile' | 'reservations' | 'passengers'>('profile');
-  const [passengers, setPassengers] = useState<any[]>([]);
+  const [passengers, setPassengers] = useState<SavedPassenger[]>([]);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [showReservationModal, setShowReservationModal] = useState(false);
   const [showAddPassengerModal, setShowAddPassengerModal] = useState(false);
@@ -28,6 +30,8 @@ export default function AccountPage() {
     email: ''
   });
   const [editingPassengerId, setEditingPassengerId] = useState<string | null>(null);
+  const [deletePassengerId, setDeletePassengerId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Profile state
   const [profileForm, setProfileForm] = useState({
@@ -78,7 +82,7 @@ export default function AccountPage() {
     }
   };
 
-  const handleEditPassenger = (passenger: any) => {
+  const handleEditPassenger = (passenger: SavedPassenger) => {
     setEditingPassengerId(passenger.id);
     setNewPassenger({
       name: passenger.first_name,
@@ -110,7 +114,7 @@ export default function AccountPage() {
         .eq('id', editingPassengerId);
 
       if (!error) {
-        setPassengers(passengers.map((p: any) =>
+        setPassengers(passengers.map((p) =>
           p.id === editingPassengerId
             ? {
                 ...p,
@@ -331,9 +335,9 @@ export default function AccountPage() {
                       </div>
                       <h3 className="text-lg font-bold text-gray-900 mb-2">Henüz rezervasyonunuz yok</h3>
                       <p className="text-gray-500 mb-6">İlk uçuşunuzu rezerve edin ve seyahate başlayın!</p>
-                      <a href="/ucus-ara" className="inline-block px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors whitespace-nowrap cursor-pointer">
+                      <Link to="/ucus-ara" className="inline-block px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors whitespace-nowrap cursor-pointer">
                         Uçuş Ara
-                      </a>
+                      </Link>
                     </div>
                   ) : (
                     reservations.map((reservation) => (
@@ -380,12 +384,12 @@ export default function AccountPage() {
                               Detaylar
                             </button>
                             {(reservation.status === 'Onaylandi' || reservation.status === 'Onaylandı') && (
-                              <a
-                                href="/check-in"
+                              <Link
+                                to="/check-in"
                                 className="px-5 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-medium whitespace-nowrap cursor-pointer text-sm"
                               >
                                 Check-in Yap
-                              </a>
+                              </Link>
                             )}
                           </div>
                         </div>
@@ -432,7 +436,7 @@ export default function AccountPage() {
                               <i className="ri-edit-line text-sm"></i>
                             </button>
                             <button
-                              onClick={() => handleDeletePassenger(passenger.id)}
+                              onClick={() => { setDeletePassengerId(passenger.id); setShowDeleteConfirm(true); }}
                               className="w-9 h-9 flex items-center justify-center border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
                             >
                               <i className="ri-delete-bin-line text-sm"></i>
@@ -551,7 +555,7 @@ export default function AccountPage() {
 
               <div className="flex items-center justify-center mb-6">
                 <div className="text-center">
-                  <img src="/images/app/barcode.webp" alt="Barkod" className="h-16 mx-auto mb-2" />
+                  <img src="/images/app/barcode.webp" alt="Rezervasyon barkodu" className="h-16 mx-auto mb-2" loading="lazy" />
                   <p className="text-xs text-gray-500">PNR: <span className="font-bold text-gray-900">{selectedReservation.pnr}</span></p>
                 </div>
               </div>
@@ -563,9 +567,9 @@ export default function AccountPage() {
                 <button className="flex-1 py-3 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium whitespace-nowrap cursor-pointer flex items-center justify-center gap-2">
                   <i className="ri-mail-send-line"></i>E-posta Gönder
                 </button>
-                <a href="/check-in" className="flex-1 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-medium whitespace-nowrap cursor-pointer flex items-center justify-center gap-2">
+                <Link to="/check-in" className="flex-1 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-medium whitespace-nowrap cursor-pointer flex items-center justify-center gap-2">
                   <i className="ri-checkbox-circle-line"></i>Check-in Yap
-                </a>
+                </Link>
               </div>
             </div>
           </div>
@@ -673,6 +677,35 @@ export default function AccountPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Yolcu Silme Onay Modal */}
+      {showDeleteConfirm && deletePassengerId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => { setShowDeleteConfirm(false); setDeletePassengerId(null); }}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8" onClick={(e) => e.stopPropagation()}>
+            <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <i className="ri-delete-bin-line text-3xl text-red-600"></i>
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-3 text-center">Yolcu Silme</h3>
+            <p className="text-gray-600 mb-6 text-center text-sm leading-relaxed">
+              Bu yolcuyu kayıtlı yolcularınızdan silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowDeleteConfirm(false); setDeletePassengerId(null); }}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 rounded-xl transition-all whitespace-nowrap cursor-pointer"
+              >
+                Vazgeç
+              </button>
+              <button
+                onClick={() => { handleDeletePassenger(deletePassengerId); setShowDeleteConfirm(false); setDeletePassengerId(null); }}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-xl transition-all whitespace-nowrap cursor-pointer"
+              >
+                Sil
+              </button>
+            </div>
           </div>
         </div>
       )}

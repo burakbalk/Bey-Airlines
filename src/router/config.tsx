@@ -1,5 +1,6 @@
 import { lazy } from 'react';
 import { RouteObject } from 'react-router-dom';
+import AdminGuard from '../components/admin/AdminGuard';
 
 const HomePage = lazy(() => import('../pages/home/page'));
 const FlightSearchPage = lazy(() => import('../pages/flight-search/page'));
@@ -27,7 +28,6 @@ const AdminFlightsPage = lazy(() => import('../pages/admin/ucuslar/page'));
 const AdminCampaignsPage = lazy(() => import('../pages/admin/kampanyalar/page'));
 const AdminReservationsPage = lazy(() => import('../pages/admin/rezervasyonlar/page'));
 const AdminCustomersPage = lazy(() => import('../pages/admin/musteriler/page'));
-const AdminMessagesPage = lazy(() => import('../pages/admin/mesajlar/page'));
 const AdminSettingsPage = lazy(() => import('../pages/admin/ayarlar/page'));
 
 const routes: RouteObject[] = [
@@ -60,7 +60,7 @@ const routes: RouteObject[] = [
     element: <CampaignsPage />,
   },
   {
-    path: '/kampanyalar/:id',
+    path: '/kampanyalar/:slug',
     element: <CampaignDetailPage />,
   },
   {
@@ -68,7 +68,7 @@ const routes: RouteObject[] = [
     element: <ReservationManagementPage />,
   },
   {
-    path: '/destinasyonlar/:id',
+    path: '/destinasyonlar/:slug',
     element: <DestinationDetailPage />,
   },
   {
@@ -117,35 +117,31 @@ const routes: RouteObject[] = [
   },
   {
     path: '/admin/dashboard',
-    element: <AdminDashboardPage />,
+    element: <AdminGuard><AdminDashboardPage /></AdminGuard>,
   },
   {
     path: '/admin/raporlar',
-    element: <AdminReportsPage />,
+    element: <AdminGuard><AdminReportsPage /></AdminGuard>,
   },
   {
     path: '/admin/ucuslar',
-    element: <AdminFlightsPage />,
+    element: <AdminGuard><AdminFlightsPage /></AdminGuard>,
   },
   {
     path: '/admin/kampanyalar',
-    element: <AdminCampaignsPage />,
+    element: <AdminGuard><AdminCampaignsPage /></AdminGuard>,
   },
   {
     path: '/admin/rezervasyonlar',
-    element: <AdminReservationsPage />,
+    element: <AdminGuard><AdminReservationsPage /></AdminGuard>,
   },
   {
     path: '/admin/musteriler',
-    element: <AdminCustomersPage />,
-  },
-  {
-    path: '/admin/mesajlar',
-    element: <AdminMessagesPage />,
+    element: <AdminGuard><AdminCustomersPage /></AdminGuard>,
   },
   {
     path: '/admin/ayarlar',
-    element: <AdminSettingsPage />,
+    element: <AdminGuard><AdminSettingsPage /></AdminGuard>,
   },
   {
     path: '*',

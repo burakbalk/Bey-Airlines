@@ -94,17 +94,30 @@ export default function CampaignsPage() {
 
         {/* Campaigns Grid */}
         <div className="max-w-7xl mx-auto px-8 py-12">
+          {filteredCampaigns.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="w-16 h-16 flex items-center justify-center mx-auto mb-4 bg-red-50 rounded-full">
+                <i className="ri-plane-line text-3xl text-primary"></i>
+              </div>
+              <p className="text-gray-500 text-lg">Bu kategoride kampanya bulunamadı.</p>
+              <p className="text-gray-400 text-sm mt-2">Farklı bir filtre seçerek tekrar deneyin.</p>
+            </div>
+          ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredCampaigns.map((campaign) => (
               <Link
                 key={campaign.id}
-                to={`/kampanyalar/${campaign.id}`}
+                to={`/kampanyalar/${campaign.slug}`}
                 className={`bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all border-2 cursor-pointer ${
                   campaign.type === 'vip' ? 'border-amber-300' : 'border-red-100'
                 }`}
               >
                 <div className="relative h-48 w-full overflow-hidden">
-                  <img src={campaign.image} alt={campaign.title} className="w-full h-full object-cover object-top" />
+                  {campaign.image ? (
+                    <img src={campaign.image} alt={campaign.title} className="w-full h-full object-cover object-top" loading="lazy" />
+                  ) : (
+                    <div className="bg-gradient-to-r from-red-500 to-red-700 w-full h-full" />
+                  )}
                   <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-bold text-white ${campaign.type === 'vip' ? 'bg-amber-500' : 'bg-red-600'}`}>
                     {campaign.badge}
                   </div>
@@ -133,6 +146,7 @@ export default function CampaignsPage() {
               </Link>
             ))}
           </div>
+          )}
         </div>
       </main>
       <Footer />

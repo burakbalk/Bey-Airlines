@@ -1,8 +1,9 @@
-import AdminGuard from '../../../components/admin/AdminGuard';
+import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../../components/admin/AdminLayout';
 import { useAdminStats } from '../../../hooks/useAdminStats';
 
 export default function AdminDashboardPage() {
+  const navigate = useNavigate();
   const { stats, recentReservations, loading } = useAdminStats();
 
   const getStatusBadge = (status: string) => {
@@ -19,19 +20,16 @@ export default function AdminDashboardPage() {
 
   if (loading) {
     return (
-      <AdminGuard>
-        <AdminLayout>
-          <div className="flex items-center justify-center h-96">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600"></div>
-          </div>
-        </AdminLayout>
-      </AdminGuard>
+      <AdminLayout>
+        <div className="flex items-center justify-center h-96">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600"></div>
+        </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <AdminGuard>
-      <AdminLayout>
+    <AdminLayout>
         <div className="space-y-6">
           {/* Welcome Card */}
           <div className="bg-gradient-to-r from-red-600 to-red-700 rounded-2xl p-8 text-white">
@@ -105,19 +103,12 @@ export default function AdminDashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
               <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center">
-                  <i className="ri-mail-unread-line text-2xl text-red-600"></i>
-                </div>
-              </div>
-              <p className="text-gray-600 text-sm mb-1">Okunmamış Mesajlar</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.unreadMessages}</p>
-            </div>
-
-            <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
                 <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center">
                   <i className="ri-megaphone-line text-2xl text-amber-600"></i>
                 </div>
+                <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg">
+                  Aktif
+                </span>
               </div>
               <p className="text-gray-600 text-sm mb-1">Aktif Kampanyalar</p>
               <p className="text-3xl font-bold text-gray-900">{stats.activeCampaigns}</p>
@@ -125,12 +116,15 @@ export default function AdminDashboardPage() {
 
             <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
               <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center">
-                  <i className="ri-calendar-check-line text-2xl text-indigo-600"></i>
+                <div className="w-12 h-12 bg-rose-50 rounded-xl flex items-center justify-center">
+                  <i className="ri-close-circle-line text-2xl text-rose-600"></i>
                 </div>
+                <span className="text-xs font-semibold text-rose-600 bg-rose-50 px-2 py-1 rounded-lg">
+                  İptal
+                </span>
               </div>
-              <p className="text-gray-600 text-sm mb-1">Bugünkü Uçuşlar</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.todayFlights}</p>
+              <p className="text-gray-600 text-sm mb-1">İptal Edilen Rezervasyonlar</p>
+              <p className="text-3xl font-bold text-gray-900">{stats.cancelledReservations}</p>
             </div>
           </div>
 
@@ -140,36 +134,45 @@ export default function AdminDashboardPage() {
             <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
               <h3 className="text-lg font-bold text-gray-900 mb-4">Hızlı İşlemler</h3>
               <div className="grid grid-cols-2 gap-4">
-                <button className="p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer text-center">
+                <button onClick={() => navigate('/admin/ucuslar')} className="p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer text-center">
                   <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center mx-auto mb-2">
                     <i className="ri-flight-takeoff-line text-xl text-red-600"></i>
                   </div>
-                  <p className="text-sm font-semibold text-gray-900">Uçuş Ekle</p>
+                  <p className="text-sm font-semibold text-gray-900">Uçuş Yönetimi</p>
                 </button>
-                <button className="p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer text-center">
+                <button onClick={() => navigate('/admin/kampanyalar')} className="p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer text-center">
                   <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center mx-auto mb-2">
                     <i className="ri-megaphone-line text-xl text-blue-600"></i>
                   </div>
-                  <p className="text-sm font-semibold text-gray-900">Kampanya Ekle</p>
+                  <p className="text-sm font-semibold text-gray-900">Kampanyalar</p>
                 </button>
-                <button className="p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer text-center">
-                  <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center mx-auto mb-2">
-                    <i className="ri-mail-line text-xl text-green-600"></i>
-                  </div>
-                  <p className="text-sm font-semibold text-gray-900">Mesajlar</p>
-                </button>
-                <button className="p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer text-center">
+                <button onClick={() => navigate('/admin/raporlar')} className="p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer text-center">
                   <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center mx-auto mb-2">
                     <i className="ri-bar-chart-line text-xl text-purple-600"></i>
                   </div>
                   <p className="text-sm font-semibold text-gray-900">Raporlar</p>
+                </button>
+                <button onClick={() => navigate('/admin/musteriler')} className="p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer text-center">
+                  <div className="w-10 h-10 bg-teal-50 rounded-xl flex items-center justify-center mx-auto mb-2">
+                    <i className="ri-user-line text-xl text-teal-600"></i>
+                  </div>
+                  <p className="text-sm font-semibold text-gray-900">Müşteriler</p>
                 </button>
               </div>
             </div>
 
             {/* Recent Reservations */}
             <div className="lg:col-span-2 bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Son Rezervasyonlar</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-gray-900">Son Rezervasyonlar</h3>
+                <button
+                  onClick={() => navigate('/admin/rezervasyonlar')}
+                  className="flex items-center gap-1 text-sm font-semibold text-red-600 hover:text-red-700 transition-colors"
+                >
+                  Tümünü Gör
+                  <i className="ri-arrow-right-line text-base"></i>
+                </button>
+              </div>
               <div className="space-y-3">
                 {recentReservations.slice(0, 6).map((item) => {
                   const badge = getStatusBadge(item.status);
@@ -198,6 +201,5 @@ export default function AdminDashboardPage() {
           </div>
         </div>
       </AdminLayout>
-    </AdminGuard>
   );
 }

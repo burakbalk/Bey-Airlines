@@ -17,7 +17,7 @@ interface AuthContextType {
   profile: Profile | null;
   loading: boolean;
   isAdmin: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: string | null; profile: Profile | null }>;
   signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<Profile>) => Promise<{ error: string | null }>;
@@ -31,28 +31,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    if (data) setProfile(data as Profile);
+  const fetchProfile = async (userId: string): Promise<Profile | null> => {
+    try {
+      // Önce doğrudan sorgu dene
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (!error && data) {
+        setProfile(data as Profile);
+        return data as Profile;
+      }
+
+      // RLS engelledi veya hata — SECURITY DEFINER RPC ile role'ü al
+      const { data: rpcRole, error: rpcError } = await supabase.rpc('check_admin_role', {
+        p_user_id: userId,
+      });
+
+      if (rpcError) {
+        console.error('[AuthContext] check_admin_role RPC hatası:', rpcError.message);
+        return null;
+      }
+
+      // Minimal profile nesnesi oluştur (role bilgisi garanti)
+      const minimalProfile: Profile = {
+        id: userId,
+        first_name: '',
+        last_name: '',
+        phone: null,
+        birth_date: null,
+        role: (rpcRole as 'user' | 'admin') ?? 'user',
+      };
+      setProfile(minimalProfile);
+      return minimalProfile;
+    } catch (err) {
+      console.error('[AuthContext] fetchProfile exception:', err);
+      return null;
+    }
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
+    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
       setSession(s);
       setUser(s?.user ?? null);
-      if (s?.user) fetchProfile(s.user.id);
+      if (s?.user) await fetchProfile(s.user.id);
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, s) => {
       setSession(s);
       setUser(s?.user ?? null);
       if (s?.user) {
-        fetchProfile(s.user.id);
+        await fetchProfile(s.user.id);
       } else {
         setProfile(null);
       }
@@ -62,8 +94,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error?.message ?? null };
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { error: error.message, profile: null };
+    // Profile'i hemen fetch et — onAuthStateChange'i beklemeye gerek yok
+    let fetchedProfile: Profile | null = null;
+    if (data.user) {
+      fetchedProfile = await fetchProfile(data.user.id);
+    }
+    return { error: null, profile: fetchedProfile };
   };
 
   const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
@@ -71,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password,
       options: {
-        data: { first_name: firstName, last_name: lastName, role: 'user' },
+        data: { first_name: firstName, last_name: lastName },
       },
     });
     return { error: error?.message ?? null };
@@ -90,12 +128,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateProfile = async (data: Partial<Profile>) => {
     if (!user) return { error: 'Giriş yapmanız gerekiyor' };
+    // GÜVENLİK: role alanını client tarafında da soyar (DB trigger zaten engelliyor)
+    const { role: _role, ...safeData } = data;
     const { error } = await supabase
       .from('profiles')
-      .update(data)
+      .update(safeData)
       .eq('id', user.id);
     if (!error && profile) {
-      setProfile({ ...profile, ...data });
+      setProfile({ ...profile, ...safeData });
     }
     return { error: error?.message ?? null };
   };

@@ -1,7 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
+import { usePageTitle } from '../../hooks/usePageTitle';
 import FilterPanel from './components/FilterPanel';
+import type { FlightFilters } from './components/FilterPanel';
 import FlightCard from './components/FlightCard';
 import { useFlightsByDate, toFlightCardFormat } from '../../hooks/useFlights';
 import {
@@ -13,9 +16,37 @@ import {
 } from '../../components/feature/SearchForm';
 
 export default function FlightSearchPage() {
-  const [filters, setFilters] = useState<any>({ flightClass: 'all' });
+  usePageTitle('Uçuş Ara');
+  const location = useLocation();
+  const locationState = location.state as { from?: string; to?: string; departDate?: string; returnDate?: string; passengers?: number; flightClass?: 'normal' | 'vip' } | null;
+
+  const [filters, setFilters] = useState<FlightFilters>({ directOnly: false, departureTime: 'all', maxPrice: 10000, includeBaggage: false, flightClass: 'all' });
   const [sortBy, setSortBy] = useState('price');
-  const { tripType, setTripType, flightClass, setFlightClass, formData, setFormData, handleSwap } = useSearchForm();
+  const { tripType, setTripType, flightClass, setFlightClass, formData, setFormData, handleSwap } = useSearchForm(
+    locationState
+      ? {
+          from: locationState.from,
+          to: locationState.to,
+          departDate: locationState.departDate,
+          returnDate: locationState.returnDate,
+          passengers: locationState.passengers,
+        }
+      : undefined
+  );
+
+  // Ana sayfadan gelen uçuş sınıfını uygula
+  useEffect(() => {
+    if (locationState?.flightClass) {
+      setFlightClass(locationState.flightClass);
+    }
+    // Sadece ilk mount'ta çalışsın
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // flightClass değiştiğinde filtreyi senkronize et
+  useEffect(() => {
+    setFilters(prev => ({ ...prev, flightClass: flightClass === 'normal' ? 'normal' : flightClass === 'vip' ? 'vip' : 'all' }));
+  }, [flightClass]);
 
   const { flights: rawFlights, loading } = useFlightsByDate(
     formData.departDate || new Date().toISOString().split('T')[0],

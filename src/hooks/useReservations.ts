@@ -2,6 +2,28 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
+export interface ExtraServicesData {
+  baggage?: number | string[];
+  meal?: string;
+  insurance?: boolean;
+  priorityBoarding?: boolean;
+}
+
+export interface SavedPassenger {
+  id: string;
+  user_id: string;
+  first_name: string;
+  last_name: string;
+  tc_no: string;
+  birth_date: string;
+  phone: string | null;
+  email: string | null;
+  firstName?: string;
+  lastName?: string;
+  tcNo?: string;
+  birthDate?: string;
+}
+
 interface Passenger {
   first_name: string;
   last_name: string;
@@ -26,7 +48,7 @@ export interface Reservation {
   flight_class: string;
   contact_email: string;
   contact_phone: string;
-  extra_services: any;
+  extra_services: ExtraServicesData | null;
   payment_method: string | null;
   payment_card_last4: string | null;
   created_at: string;
@@ -46,38 +68,50 @@ export function useUserReservations() {
   const { user } = useAuth();
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!user) { setReservations([]); setLoading(false); return; }
     setLoading(true);
+    setError(null);
 
-    const { data } = await supabase
+    const { data, error: queryError } = await supabase
       .from('reservations')
-      .select('*, passengers(*)')
+      .select('id, pnr, user_id, flight_id, flight_number, route, flight_date, flight_time, status, total_price, flight_class, contact_email, contact_phone, extra_services, payment_method, payment_card_last4, created_at, passengers(first_name, last_name, tc_no, birth_date, gender, seat_number, passenger_type)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
+    if (queryError) {
+      console.error('[useUserReservations] Supabase hatası:', queryError.message);
+      setError(queryError.message);
+    }
     if (data) setReservations(data as Reservation[]);
     setLoading(false);
   }, [user]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  return { reservations, loading, refresh };
+  return { reservations, loading, error, refresh };
 }
 
 export function useAdminReservations() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
+    setError(null);
+    const { data, error: queryError } = await supabase
       .from('reservations')
       .select('*, passengers(*)')
       .order('created_at', { ascending: false })
       .limit(100);
 
+    if (queryError) {
+      console.error('[useAdminReservations] Supabase hatası:', queryError.message);
+      setError(queryError.message);
+    }
     if (data) setReservations(data as Reservation[]);
     setLoading(false);
   }, []);
@@ -93,7 +127,7 @@ export function useAdminReservations() {
     return { error: error?.message ?? null };
   };
 
-  return { reservations, loading, refresh, updateStatus };
+  return { reservations, loading, error, refresh, updateStatus };
 }
 
 export function useCreateReservation() {
@@ -109,7 +143,7 @@ export function useCreateReservation() {
     totalPrice: number;
     contactEmail: string;
     contactPhone: string;
-    extraServices: any;
+    extraServices: ExtraServicesData;
     paymentMethod: string;
     paymentCardLast4: string;
     passengers: Passenger[];
@@ -182,11 +216,19 @@ export function useCreateReservation() {
       }
     }
 
-    // Uçuş koltuk sayısını güncelle
-    await supabase.rpc('increment_booked_seats', {
+    // Uçuş koltuk sayısını güncelle (kapasite kontrolü dahil)
+    const { data: seatResult, error: rpcError } = await supabase.rpc('increment_booked_seats', {
       p_flight_id: data.flightId,
       p_count: data.passengers.length,
-    }).then(() => {});
+    });
+    if (rpcError) {
+      console.error('increment_booked_seats hatası:', rpcError.message);
+    } else if (seatResult === false) {
+      // Kapasite dolu — rezervasyonu iptal et
+      await supabase.from('passengers').delete().eq('reservation_id', reservation.id);
+      await supabase.from('reservations').delete().eq('id', reservation.id);
+      return { pnr: null, error: 'Bu uçuşta yeterli koltuk kalmadı. Lütfen başka bir uçuş seçin.' };
+    }
 
     return { pnr, error: null };
   };
@@ -196,18 +238,33 @@ export function useCreateReservation() {
 
 export function useSavedPassengers() {
   const { user } = useAuth();
-  const [passengers, setPassengers] = useState<any[]>([]);
+  const [passengers, setPassengers] = useState<SavedPassenger[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
+    setLoading(true);
+    setError(null);
     supabase
       .from('saved_passengers')
       .select('*')
       .eq('user_id', user.id)
-      .then(({ data }) => {
-        if (data) setPassengers(data);
+      .then(({ data, error: fetchError }) => {
+        if (fetchError) {
+          console.error('[useSavedPassengers] Supabase hatası:', fetchError.message);
+          setError(fetchError.message);
+        }
+        if (data) setPassengers(data.map(p => ({
+          ...p,
+          firstName: p.first_name,
+          lastName: p.last_name,
+          tcNo: p.tc_no,
+          birthDate: p.birth_date,
+        })));
+        setLoading(false);
       });
   }, [user]);
 
-  return passengers;
+  return { savedPassengers: passengers, loading, error };
 }

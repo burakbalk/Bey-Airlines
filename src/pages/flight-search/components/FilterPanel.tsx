@@ -1,11 +1,19 @@
 import { useState } from 'react';
 
+export interface FlightFilters {
+  directOnly: boolean;
+  departureTime: string;
+  maxPrice: number;
+  includeBaggage: boolean;
+  flightClass: string;
+}
+
 interface FilterPanelProps {
-  onFilterChange: (filters: any) => void;
+  onFilterChange: (filters: FlightFilters) => void;
 }
 
 export default function FilterPanel({ onFilterChange }: FilterPanelProps) {
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<FlightFilters>({
     directOnly: false,
     departureTime: 'all',
     maxPrice: 10000,
@@ -13,7 +21,7 @@ export default function FilterPanel({ onFilterChange }: FilterPanelProps) {
     flightClass: 'all',
   });
 
-  const handleFilterChange = (key: string, value: any) => {
+  const handleFilterChange = (key: keyof FlightFilters, value: string | number | boolean) => {
     const newFilters = { ...filters, [key]: value };
     setFilters(newFilters);
     onFilterChange(newFilters);

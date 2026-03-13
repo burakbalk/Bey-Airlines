@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
+import BookingStepper from '../../components/feature/BookingStepper';
 
 interface ExtraService {
   baggage: number;
@@ -10,12 +11,22 @@ interface ExtraService {
   priorityBoarding: boolean;
 }
 
+interface ExtrasBookingData {
+  from: string;
+  to: string;
+  date: string;
+  price: string;
+  passengers: { id: string; firstName: string; lastName: string; [key: string]: unknown }[];
+  seats?: { seatId: string; price?: number }[];
+  [key: string]: unknown;
+}
+
 const ExtraServicesPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const flightId = searchParams.get('flightId');
 
-  const [bookingData, setBookingData] = useState<any>(null);
+  const [bookingData, setBookingData] = useState<ExtrasBookingData | null>(null);
   const [services, setServices] = useState<ExtraService>({
     baggage: 0,
     meal: 'none',
@@ -29,10 +40,14 @@ const ExtraServicesPage = () => {
       navigate('/ucus-ara');
       return;
     }
-    
-    const parsed = JSON.parse(data);
-    setBookingData(parsed);
-  }, []);
+
+    try {
+      const parsed = JSON.parse(data);
+      setBookingData(parsed);
+    } catch {
+      navigate('/ucus-ara');
+    }
+  }, [navigate]);
 
   const baggageOptions = [
     { weight: 0, price: 0, label: 'Bagaj Yok' },
@@ -89,17 +104,15 @@ const ExtraServicesPage = () => {
 
   if (!bookingData) return null;
 
-  const basePrice = parseFloat(bookingData.price.replace(/[.,]/g, '')) * bookingData.passengers.length;
-  const seatPrice = bookingData.seats?.reduce((sum: number, ps: any) => {
-    const seatId = ps.seatId;
-    if (!seatId) return sum;
-    
-    // VIP koltuklar (1-5 arası sıralar)
-    if (parseInt(seatId) <= 5) return sum + 250;
-    // Acil çıkış (12-13 sıralar)
-    if (parseInt(seatId) === 12 || parseInt(seatId) === 13) return sum + 150;
-    
-    return sum;
+  const unitPrice = parseFloat(bookingData.price.replace(/[.,]/g, ''));
+  const basePrice = bookingData.passengers.reduce((sum, p) => {
+    const type = (p as { type?: string }).type;
+    if (type === 'child') return sum + unitPrice * 0.75;
+    if (type === 'infant') return sum + unitPrice * 0.1;
+    return sum + unitPrice;
+  }, 0);
+  const seatPrice = bookingData.seats?.reduce((sum: number, ps: { seatId: string; price?: number }) => {
+    return sum + (ps.price || 0);
   }, 0) || 0;
 
   return (
@@ -107,58 +120,7 @@ const ExtraServicesPage = () => {
       <Header />
       
       <main className="flex-1 pt-20">
-        {/* Progress Steps */}
-        <div className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-1 sm:space-x-3 opacity-50">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-green-600 text-white flex items-center justify-center font-semibold">
-                  <i className="ri-check-line text-lg"></i>
-                </div>
-                <div className="hidden sm:block">
-                  <div className="text-sm font-semibold text-gray-500">Yolcu Bilgileri</div>
-                  <div className="text-xs text-gray-400">Tamamlandı</div>
-                </div>
-              </div>
-
-              <div className="flex-1 h-0.5 bg-green-600 mx-1 sm:mx-4"></div>
-
-              <div className="flex items-center space-x-1 sm:space-x-3 opacity-50">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-green-600 text-white flex items-center justify-center font-semibold">
-                  <i className="ri-check-line text-lg"></i>
-                </div>
-                <div className="hidden sm:block">
-                  <div className="text-sm font-semibold text-gray-500">Koltuk Seçimi</div>
-                  <div className="text-xs text-gray-400">Tamamlandı</div>
-                </div>
-              </div>
-
-              <div className="flex-1 h-0.5 bg-green-600 mx-1 sm:mx-4"></div>
-
-              <div className="flex items-center space-x-1 sm:space-x-3">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-red-600 text-white flex items-center justify-center font-semibold">
-                  3
-                </div>
-                <div className="hidden sm:block">
-                  <div className="text-sm font-semibold text-red-600">Ek Hizmetler</div>
-                  <div className="text-xs text-gray-500">Bagaj, yemek, sigorta</div>
-                </div>
-              </div>
-
-              <div className="flex-1 h-0.5 bg-gray-200 mx-1 sm:mx-4"></div>
-
-              <div className="flex items-center space-x-1 sm:space-x-3 opacity-50">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold">
-                  4
-                </div>
-                <div className="hidden sm:block">
-                  <div className="text-sm font-semibold text-gray-500">Ödeme</div>
-                  <div className="text-xs text-gray-400">Ödeme ve onay</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <BookingStepper currentStep={3} />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -400,9 +362,10 @@ const ExtraServicesPage = () => {
                 <button
                   type="button"
                   onClick={handleContinue}
-                  className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-colors whitespace-nowrap"
+                  className="w-full py-4 bg-gradient-to-r from-primary to-secondary hover:from-primary-dark hover:to-primary text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-[0.98]"
                 >
-                  Ödemeye Geç
+                  <span>Ödemeye Geç</span>
+                  <i className="ri-arrow-right-line text-lg"></i>
                 </button>
 
                 <div className="mt-6 p-4 bg-green-50 rounded-xl">

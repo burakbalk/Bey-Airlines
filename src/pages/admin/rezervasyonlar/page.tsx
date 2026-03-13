@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import AdminLayout from '../../../components/admin/AdminLayout';
-import AdminGuard from '../../../components/admin/AdminGuard';
 import { useAdminReservations, Reservation } from '../../../hooks/useReservations';
+
+const ITEMS_PER_PAGE = 20;
 
 export default function AdminReservationsPage() {
   const { reservations, loading, updateStatus } = useAdminReservations();
@@ -11,6 +12,7 @@ export default function AdminReservationsPage() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ type: 'approve' | 'cancel'; id: string } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const filteredReservations = reservations.filter((res) => {
     const matchesSearch =
@@ -20,6 +22,12 @@ export default function AdminReservationsPage() {
     const matchesStatus = statusFilter === 'Tümü' || res.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredReservations.length / ITEMS_PER_PAGE));
+  const paginatedReservations = filteredReservations.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   const handleStatusChange = async (id: string, newStatus: 'Onaylandı' | 'İptal') => {
     await updateStatus(id, newStatus);
@@ -54,20 +62,17 @@ export default function AdminReservationsPage() {
 
   if (loading) {
     return (
-      <AdminGuard>
-        <AdminLayout>
-          <div className="flex items-center justify-center h-96">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600"></div>
-          </div>
-        </AdminLayout>
-      </AdminGuard>
+      <AdminLayout>
+        <div className="flex items-center justify-center h-96">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600"></div>
+        </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <AdminGuard>
-      <AdminLayout>
-        <div className="space-y-6">
+    <AdminLayout>
+      <div className="space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
@@ -108,7 +113,7 @@ export default function AdminReservationsPage() {
                     type="text"
                     placeholder="PNR, e-posta veya uçuş numarası ile ara..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                     className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm"
                   />
                 </div>
@@ -117,7 +122,7 @@ export default function AdminReservationsPage() {
                 {(['Tümü', 'Onaylandı', 'Beklemede', 'İptal'] as const).map((status) => (
                   <button
                     key={status}
-                    onClick={() => setStatusFilter(status)}
+                    onClick={() => { setStatusFilter(status); setCurrentPage(1); }}
                     className={`px-4 py-3 rounded-xl font-medium text-sm transition-colors whitespace-nowrap cursor-pointer ${
                       statusFilter === status
                         ? 'bg-red-600 text-white shadow-md'
@@ -148,7 +153,7 @@ export default function AdminReservationsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {filteredReservations.map((reservation) => (
+                  {paginatedReservations.map((reservation) => (
                     <tr key={reservation.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4">
                         <span className="font-semibold text-gray-900 text-sm">{reservation.pnr}</span>
@@ -220,6 +225,63 @@ export default function AdminReservationsPage() {
                 </tbody>
               </table>
             </div>
+            {filteredReservations.length > 0 && (
+              <div className="flex items-center justify-between px-5 py-4 border-t border-gray-100">
+                <p className="text-sm text-gray-500">
+                  Toplam <span className="font-semibold text-gray-900">{filteredReservations.length}</span> kayıt,{' '}
+                  <span className="font-semibold text-gray-900">{currentPage}</span> / {totalPages} sayfa
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                  >
+                    <i className="ri-arrow-left-s-line text-lg"></i>
+                  </button>
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    const start = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
+                    return start + i;
+                  }).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-9 h-9 flex items-center justify-center rounded-xl text-sm font-medium transition-colors cursor-pointer ${
+                        page === currentPage ? 'bg-red-600 text-white shadow-md' : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                  >
+                    <i className="ri-arrow-right-s-line text-lg"></i>
+                  </button>
+                </div>
+              </div>
+            )}
+            {filteredReservations.length === 0 && (
+              <div className="text-center py-16">
+                <i className="ri-file-list-3-line text-6xl text-gray-300 block mb-4"></i>
+                <p className="text-gray-500 text-lg font-medium mb-1">Rezervasyon bulunamadı</p>
+                <p className="text-gray-400 text-sm mb-4">
+                  {searchQuery || statusFilter !== 'Tümü'
+                    ? 'Arama veya filtre kriterlerinize uygun rezervasyon yok.'
+                    : 'Henüz hiç rezervasyon bulunmuyor.'}
+                </p>
+                {(searchQuery || statusFilter !== 'Tümü') && (
+                  <button
+                    onClick={() => { setSearchQuery(''); setStatusFilter('Tümü'); }}
+                    className="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 transition-colors cursor-pointer"
+                  >
+                    Filtreyi Temizle
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -363,7 +425,6 @@ export default function AdminReservationsPage() {
             </div>
           </div>
         )}
-      </AdminLayout>
-    </AdminGuard>
+    </AdminLayout>
   );
 }

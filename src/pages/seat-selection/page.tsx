@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
+import BookingStepper from '../../components/feature/BookingStepper';
+import { supabase } from '../../lib/supabase';
 
 interface Seat {
   id: string;
@@ -10,6 +12,24 @@ interface Seat {
   type: 'economy' | 'vip' | 'exit';
   status: 'available' | 'occupied' | 'selected';
   price: number;
+}
+
+interface BookingPassenger {
+  id: string;
+  firstName: string;
+  lastName: string;
+  [key: string]: unknown;
+}
+
+interface SeatBookingData {
+  flightId: string;
+  from: string;
+  to: string;
+  date: string;
+  price: string;
+  passengers: BookingPassenger[];
+  seats?: { seatId: string; type?: string; price?: number }[];
+  [key: string]: unknown;
 }
 
 interface PassengerSeat {
@@ -23,10 +43,61 @@ const SeatSelectionPage = () => {
   const [searchParams] = useSearchParams();
   const flightId = searchParams.get('flightId');
 
-  const [bookingData, setBookingData] = useState<any>(null);
+  const [bookingData, setBookingData] = useState<SeatBookingData | null>(null);
   const [seats, setSeats] = useState<Seat[]>([]);
+  const [seatsLoading, setSeatsLoading] = useState(false);
   const [passengerSeats, setPassengerSeats] = useState<PassengerSeat[]>([]);
   const [selectedPassengerIndex, setSelectedPassengerIndex] = useState(0);
+  const [seatError, setSeatError] = useState('');
+
+  const buildSeats = (occupiedIds: Set<string>): Seat[] => {
+    const seatLayout: Seat[] = [];
+    const columns = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+    for (let row = 1; row <= 30; row++) {
+      columns.forEach(col => {
+        let type: 'economy' | 'vip' | 'exit' = 'economy';
+        let price = 0;
+
+        if (row <= 5) { type = 'vip'; price = 250; }
+        else if (row === 12 || row === 13) { type = 'exit'; price = 150; }
+
+        const id = `${row}${col}`;
+        seatLayout.push({
+          id,
+          row,
+          column: col,
+          type,
+          status: occupiedIds.has(id) ? 'occupied' : 'available',
+          price,
+        });
+      });
+    }
+    return seatLayout;
+  };
+
+  const fetchOccupiedSeats = async (flightId: number): Promise<Set<string>> => {
+    const { data: reservations } = await supabase
+      .from('reservations')
+      .select('id')
+      .eq('flight_id', flightId);
+
+    if (!reservations || reservations.length === 0) return new Set();
+
+    const reservationIds = reservations.map(r => r.id);
+    const { data: passengers } = await supabase
+      .from('passengers')
+      .select('seat_number')
+      .in('reservation_id', reservationIds)
+      .not('seat_number', 'is', null)
+      .neq('seat_number', '-');
+
+    const occupied = new Set<string>();
+    passengers?.forEach(p => {
+      if (p.seat_number) occupied.add(p.seat_number);
+    });
+    return occupied;
+  };
 
   useEffect(() => {
     const data = sessionStorage.getItem('bookingData');
@@ -34,58 +105,33 @@ const SeatSelectionPage = () => {
       navigate('/ucus-ara');
       return;
     }
-    
-    const parsed = JSON.parse(data);
-    setBookingData(parsed);
 
-    // Yolcu-koltuk eşleştirmesi oluştur
-    const passengerSeatMap = parsed.passengers.map((p: any, idx: number) => ({
-      passengerId: p.id,
-      passengerName: `${p.firstName} ${p.lastName}`,
-      seatId: null
-    }));
-    setPassengerSeats(passengerSeatMap);
+    try {
+      const parsed = JSON.parse(data);
+      setBookingData(parsed);
 
-    // Mock koltuk haritası oluştur
-    generateSeats();
-  }, []);
+      const passengerSeatMap = parsed.passengers.map((p: BookingPassenger) => ({
+        passengerId: p.id,
+        passengerName: `${p.firstName} ${p.lastName}`,
+        seatId: null,
+      }));
+      setPassengerSeats(passengerSeatMap);
 
-  const generateSeats = () => {
-    const seatLayout: Seat[] = [];
-    const columns = ['A', 'B', 'C', 'D', 'E', 'F'];
-    
-    for (let row = 1; row <= 30; row++) {
-      columns.forEach(col => {
-        let type: 'economy' | 'vip' | 'exit' = 'economy';
-        let price = 0;
-        
-        // İlk 5 sıra VIP
-        if (row <= 5) {
-          type = 'vip';
-          price = 250;
-        }
-        // 12. ve 13. sıra acil çıkış
-        else if (row === 12 || row === 13) {
-          type = 'exit';
-          price = 150;
-        }
-        
-        // Rastgele dolu koltuklar
-        const isOccupied = Math.random() > 0.65;
-        
-        seatLayout.push({
-          id: `${row}${col}`,
-          row,
-          column: col,
-          type,
-          status: isOccupied ? 'occupied' : 'available',
-          price
+      setSeatsLoading(true);
+      const fId = Number(parsed.flightId);
+      if (fId) {
+        fetchOccupiedSeats(fId).then(occupiedIds => {
+          setSeats(buildSeats(occupiedIds));
+          setSeatsLoading(false);
         });
-      });
+      } else {
+        setSeats(buildSeats(new Set()));
+        setSeatsLoading(false);
+      }
+    } catch {
+      navigate('/ucus-ara');
     }
-    
-    setSeats(seatLayout);
-  };
+  }, [navigate]);
 
   const handleSeatClick = (seat: Seat) => {
     if (seat.status === 'occupied') return;
@@ -143,10 +189,11 @@ const SeatSelectionPage = () => {
   };
 
   const handleContinue = () => {
+    setSeatError('');
     // Tüm yolcular koltuk seçti mi kontrol et
     const unassigned = passengerSeats.filter(ps => !ps.seatId);
     if (unassigned.length > 0) {
-      alert(`Lütfen tüm yolcular için koltuk seçin. ${unassigned.length} yolcu için koltuk seçilmedi.`);
+      setSeatError(`Lütfen tüm yolcular için koltuk seçin. ${unassigned.length} yolcu için koltuk seçilmedi.`);
       return;
     }
     
@@ -170,65 +217,20 @@ const SeatSelectionPage = () => {
 
   if (!bookingData) return null;
 
-  const basePrice = parseFloat(bookingData.price.replace(/[.,]/g, '')) * bookingData.passengers.length;
+  const unitPrice = parseFloat(bookingData.price.replace(/[.,]/g, ''));
+  const basePrice = bookingData.passengers.reduce((sum, p) => {
+    const type = (p as { type?: string }).type;
+    if (type === 'child') return sum + unitPrice * 0.75;
+    if (type === 'infant') return sum + unitPrice * 0.1;
+    return sum + unitPrice;
+  }, 0);
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Header />
       
       <main className="flex-1 pt-20">
-        {/* Progress Steps */}
-        <div className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-1 sm:space-x-3 opacity-50">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-green-600 text-white flex items-center justify-center font-semibold">
-                  <i className="ri-check-line text-lg"></i>
-                </div>
-                <div className="hidden sm:block">
-                  <div className="text-sm font-semibold text-gray-500">Yolcu Bilgileri</div>
-                  <div className="text-xs text-gray-400">Tamamlandı</div>
-                </div>
-              </div>
-
-              <div className="flex-1 h-0.5 bg-green-600 mx-1 sm:mx-4"></div>
-
-              <div className="flex items-center space-x-1 sm:space-x-3">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-red-600 text-white flex items-center justify-center font-semibold">
-                  2
-                </div>
-                <div className="hidden sm:block">
-                  <div className="text-sm font-semibold text-red-600">Koltuk Seçimi</div>
-                  <div className="text-xs text-gray-500">Koltuk seçin</div>
-                </div>
-              </div>
-
-              <div className="flex-1 h-0.5 bg-gray-200 mx-1 sm:mx-4"></div>
-
-              <div className="flex items-center space-x-1 sm:space-x-3 opacity-50">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold">
-                  3
-                </div>
-                <div className="hidden sm:block">
-                  <div className="text-sm font-semibold text-gray-500">Ek Hizmetler</div>
-                  <div className="text-xs text-gray-400">Bagaj, yemek, sigorta</div>
-                </div>
-              </div>
-
-              <div className="flex-1 h-0.5 bg-gray-200 mx-1 sm:mx-4"></div>
-
-              <div className="flex items-center space-x-1 sm:space-x-3 opacity-50">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold">
-                  4
-                </div>
-                <div className="hidden sm:block">
-                  <div className="text-sm font-semibold text-gray-500">Ödeme</div>
-                  <div className="text-xs text-gray-400">Ödeme ve onay</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <BookingStepper currentStep={2} />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -259,36 +261,46 @@ const SeatSelectionPage = () => {
                 </div>
 
                 {/* Koltuk Gösterge */}
-                <div className="mb-6 flex flex-wrap items-center gap-4 p-4 bg-gray-50 rounded-xl">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 rounded-lg bg-white border-2 border-gray-300"></div>
-                    <span className="text-sm text-gray-600">Boş</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 rounded-lg bg-red-600"></div>
-                    <span className="text-sm text-gray-600">Seçili</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 rounded-lg bg-gray-400"></div>
-                    <span className="text-sm text-gray-600">Dolu</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 rounded-lg bg-amber-500"></div>
-                    <span className="text-sm text-gray-600">VIP (+250₺)</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 rounded-lg bg-blue-500"></div>
-                    <span className="text-sm text-gray-600">Acil Çıkış (+150₺)</span>
-                  </div>
+                <div className="mb-6 grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                  {[
+                    { color: 'bg-white border-2 border-gray-200', label: 'Boş' },
+                    { color: 'bg-primary', label: 'Seçili' },
+                    { color: 'bg-gray-300', label: 'Dolu' },
+                    { color: 'bg-amber-400', label: 'VIP (+250₺)' },
+                    { color: 'bg-sky-400', label: 'Acil Çıkış (+150₺)' },
+                  ].map((item) => (
+                    <div key={item.label} className="flex items-center gap-2">
+                      <div className={`w-6 h-6 rounded ${item.color} flex-shrink-0`}></div>
+                      <span className="text-xs text-gray-600 whitespace-nowrap">{item.label}</span>
+                    </div>
+                  ))}
                 </div>
 
+                {seatsLoading && (
+                  <div className="flex items-center justify-center py-12 text-gray-500">
+                    <i className="ri-loader-4-line animate-spin text-2xl mr-2"></i>
+                    Koltuk durumu yükleniyor...
+                  </div>
+                )}
+
                 {/* Uçak Kabini */}
-                <div className="bg-gradient-to-b from-gray-100 to-white rounded-2xl p-3 sm:p-6 overflow-x-auto">
-                  {/* Kokpit */}
-                  <div className="flex justify-center mb-6">
-                    <div className="w-32 h-16 bg-gray-300 rounded-t-full flex items-center justify-center">
-                      <i className="ri-steering-2-line text-3xl text-gray-600"></i>
+                {!seatsLoading && <div className="bg-gradient-to-b from-slate-50 to-white rounded-2xl border border-gray-100 p-3 sm:p-6 overflow-x-auto">
+                  {/* Uçak burnu / kokpit */}
+                  <div className="flex flex-col items-center mb-4">
+                    <div className="w-20 h-10 bg-gradient-to-b from-gray-400 to-gray-300 rounded-t-full flex items-end justify-center pb-1">
+                      <i className="ri-plane-fill text-white text-lg rotate-90"></i>
                     </div>
+                    <div className="w-32 h-4 bg-gray-200 rounded-b"></div>
+                    <p className="text-xs text-gray-400 mt-2 font-medium tracking-widest uppercase">Ön</p>
+                  </div>
+
+                  {/* VIP section label */}
+                  <div className="flex items-center gap-2 mb-2 px-2">
+                    <div className="flex-1 h-px bg-amber-200"></div>
+                    <span className="text-xs text-amber-600 font-semibold whitespace-nowrap flex items-center gap-1">
+                      <i className="ri-vip-crown-fill text-xs"></i> VIP Kabin (1-5)
+                    </span>
+                    <div className="flex-1 h-px bg-amber-200"></div>
                   </div>
 
                   {/* Koltuklar */}
@@ -369,14 +381,17 @@ const SeatSelectionPage = () => {
                       );
                     })}
                   </div>
-                </div>
+                </div>}
               </div>
             </div>
 
             {/* Sağ Taraf - Özet */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 sticky top-24">
-                <h3 className="text-lg font-bold text-gray-900 mb-6">Rezervasyon Özeti</h3>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 sticky top-24">
+                <div className="flex items-center gap-2 mb-6">
+                  <i className="ri-flight-takeoff-line text-primary text-xl"></i>
+                  <h3 className="text-lg font-bold text-gray-900">Rezervasyon Özeti</h3>
+                </div>
 
                 <div className="space-y-4 mb-6">
                   <div className="flex items-start space-x-3">
@@ -436,12 +451,20 @@ const SeatSelectionPage = () => {
                   </div>
                 </div>
 
+                {seatError && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-sm text-red-700" role="alert">
+                    <i className="ri-error-warning-line text-lg flex-shrink-0"></i>
+                    <span>{seatError}</span>
+                  </div>
+                )}
+
                 <button
                   type="button"
                   onClick={handleContinue}
-                  className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-colors whitespace-nowrap"
+                  className="w-full py-4 bg-gradient-to-r from-primary to-secondary hover:from-primary-dark hover:to-primary text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-[0.98]"
                 >
-                  Ek Hizmetlere Geç
+                  <span>Ek Hizmetlere Geç</span>
+                  <i className="ri-arrow-right-line text-lg"></i>
                 </button>
 
                 <div className="mt-6 p-4 bg-blue-50 rounded-xl">

@@ -1,45 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
-import { supabase } from '../../lib/supabase';
-import type { Campaign } from '../../hooks/useCampaigns';
+import { useCampaignBySlug } from '../../hooks/useCampaigns';
 
 export default function CampaignDetailPage() {
-  const { id } = useParams<{ id: string }>();
-  const [campaign, setCampaign] = useState<Campaign | null>(null);
-  const [similarCampaigns, setSimilarCampaigns] = useState<Campaign[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { slug } = useParams<{ slug: string }>();
+  const { campaign, similarCampaigns, loading } = useCampaignBySlug(slug);
   const [activeAccordion, setActiveAccordion] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (!id) { setLoading(false); return; }
-
-    const fetchCampaign = async () => {
-      setLoading(true);
-      const { data } = await supabase
-        .from('campaigns')
-        .select('*')
-        .eq('id', Number(id))
-        .single();
-
-      if (data) {
-        setCampaign(data as Campaign);
-        // Fetch similar campaigns
-        const { data: similar } = await supabase
-          .from('campaigns')
-          .select('*')
-          .eq('is_active', true)
-          .eq('type', data.type)
-          .neq('id', data.id)
-          .limit(3);
-        if (similar) setSimilarCampaigns(similar as Campaign[]);
-      }
-      setLoading(false);
-    };
-
-    fetchCampaign();
-  }, [id]);
 
   if (loading) {
     return (
@@ -81,7 +49,11 @@ export default function CampaignDetailPage() {
       <main className="flex-1">
         {/* Hero Section */}
         <div className="relative h-96 w-full overflow-hidden">
-          <img src={campaign.image} alt={campaign.title} className="w-full h-full object-cover object-top" />
+          {campaign.image ? (
+            <img src={campaign.image} alt={campaign.title} className="w-full h-full object-cover object-top" />
+          ) : (
+            <div className="bg-gradient-to-r from-red-500 to-red-700 w-full h-full" />
+          )}
           <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/60"></div>
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center px-8 max-w-4xl">
@@ -197,6 +169,13 @@ export default function CampaignDetailPage() {
                   </div>
                   <Link
                     to="/ucus-ara"
+                    state={(() => {
+                      const firstRoute = campaign.routes?.[0];
+                      if (!firstRoute) return undefined;
+                      const parts = firstRoute.split(/\s*[-→↔]\s*/);
+                      if (parts.length >= 2) return { from: parts[0].trim(), to: parts[1].trim() };
+                      return undefined;
+                    })()}
                     className={`block w-full text-center font-semibold py-4 rounded-xl transition-all shadow-md hover:shadow-lg whitespace-nowrap cursor-pointer ${
                       campaign.type === 'vip'
                         ? 'bg-amber-500 hover:bg-amber-600 text-white'
@@ -233,13 +212,17 @@ export default function CampaignDetailPage() {
                 {similarCampaigns.map((similar) => (
                   <Link
                     key={similar.id}
-                    to={`/kampanyalar/${similar.id}`}
+                    to={`/kampanyalar/${similar.slug}`}
                     className={`bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all border-2 cursor-pointer ${
                       similar.type === 'vip' ? 'border-amber-300' : 'border-red-100'
                     }`}
                   >
                     <div className="relative h-48 w-full overflow-hidden">
-                      <img src={similar.image} alt={similar.title} className="w-full h-full object-cover object-top" />
+                      {similar.image ? (
+                        <img src={similar.image} alt={similar.title} className="w-full h-full object-cover object-top" loading="lazy" />
+                      ) : (
+                        <div className="bg-gradient-to-r from-red-500 to-red-700 w-full h-full" />
+                      )}
                       <div className={`absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-bold text-white ${similar.type === 'vip' ? 'bg-amber-500' : 'bg-red-600'}`}>
                         {similar.badge}
                       </div>

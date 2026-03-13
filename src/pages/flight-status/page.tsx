@@ -12,13 +12,14 @@ export default function FlightStatusPage() {
   const searchResults = flights.map(toStatusCardFormat);
 
   const handleSearch = (
-    searchType: 'flightNumber' | 'route',
+    searchType: 'flightNumber' | 'route' | 'pnr',
     value: string,
     from?: string,
-    to?: string
+    to?: string,
+    date?: string
   ) => {
     setHasSearched(true);
-    search(searchType, value, from, to);
+    search(searchType, value, from, to, date);
   };
 
   return (

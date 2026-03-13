@@ -1,12 +1,12 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useDestinationById, useDestinations } from '../../hooks/useDestinations';
+import { useDestinationBySlug, useDestinations } from '../../hooks/useDestinations';
 import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
 
 export default function DestinationDetailPage() {
-  const { id } = useParams();
+  const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { destination, loading } = useDestinationById(id);
+  const { destination, loading } = useDestinationBySlug(slug);
   const { destinations } = useDestinations();
 
   const otherDestinations = destinations.filter(d => d.id !== destination?.id).slice(0, 3);
@@ -65,19 +65,27 @@ export default function DestinationDetailPage() {
             <p className="text-base sm:text-xl mb-6 text-white/90">{destination.country}</p>
             
             <div className="flex flex-wrap gap-3 justify-center mb-8">
-              <span className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap">
-                {destination.weather.temp}
-              </span>
-              <span className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap">
-                {destination.weather.condition}
-              </span>
+              {destination.weather ? (
+                <>
+                  <span className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap">
+                    {destination.weather.temp}
+                  </span>
+                  <span className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap">
+                    {destination.weather.condition}
+                  </span>
+                </>
+              ) : (
+                <span className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap">
+                  Hava durumu bilgisi mevcut değil
+                </span>
+              )}
               <span className="bg-primary text-white px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap">
                 {destination.price} TL'den başlayan fiyatlarla
               </span>
             </div>
 
             <button
-              onClick={() => navigate('/ucus-ara')}
+              onClick={() => navigate('/ucus-ara', { state: { to: destination.city } })}
               className="bg-red-600 hover:bg-red-700 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl text-sm sm:text-lg font-semibold transition-all duration-300 hover:scale-105 shadow-2xl whitespace-nowrap"
             >
               Bu Destinasyona Uç
@@ -183,7 +191,7 @@ export default function DestinationDetailPage() {
                   <div className="flex justify-between items-center">
                     <span className="text-2xl font-bold text-primary">{flight.price} TL</span>
                     <button
-                      onClick={() => navigate('/ucus-ara')}
+                      onClick={() => navigate('/ucus-ara', { state: { from: flight.from, to: destination.city } })}
                       className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-sm font-semibold transition-colors whitespace-nowrap"
                     >
                       Rezervasyon Yap
@@ -204,7 +212,7 @@ export default function DestinationDetailPage() {
             {otherDestinations.map((dest) => (
               <Link
                 key={dest.id}
-                to={`/destinasyonlar/${dest.id}`}
+                to={`/destinasyonlar/${dest.slug}`}
                 className="group relative rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-xl"
               >
                 <div className="w-full h-40 sm:h-64">

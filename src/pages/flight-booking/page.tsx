@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
+import BookingStepper from '../../components/feature/BookingStepper';
+import { useSavedPassengers } from '../../hooks/useReservations';
 
 interface Passenger {
   id: string;
@@ -21,17 +23,22 @@ interface ContactInfo {
 const FlightBookingPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  
+  const { savedPassengers = [] } = useSavedPassengers();
+
   const flightId = searchParams.get('flightId');
   const from = searchParams.get('from') || 'İstanbul';
   const to = searchParams.get('to') || 'Dubai';
   const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
   const price = searchParams.get('price') || '1,250';
+  const flightNumber = searchParams.get('flightNumber') || '';
+  const flightTime = searchParams.get('departureTime') || '';
+  const flightClass = searchParams.get('flightClass') || 'normal';
+  const duration = searchParams.get('duration') || '';
 
   const [adultCount, setAdultCount] = useState(1);
   const [childCount, setChildCount] = useState(0);
   const [infantCount, setInfantCount] = useState(0);
-  
+
   const [passengers, setPassengers] = useState<Passenger[]>([]);
   const [contactInfo, setContactInfo] = useState<ContactInfo>({
     email: '',
@@ -39,55 +46,34 @@ const FlightBookingPage = () => {
   });
 
   const [showSavedPassengers, setShowSavedPassengers] = useState<string | null>(null);
-
-  // Mock kayıtlı yolcular
-  const savedPassengers = [
-    { id: '1', firstName: 'Ahmet', lastName: 'Yılmaz', tcNo: '12345678901', birthDate: '1990-05-15', gender: 'male' as const },
-    { id: '2', firstName: 'Ayşe', lastName: 'Demir', tcNo: '98765432109', birthDate: '1985-08-22', gender: 'female' as const },
-    { id: '3', firstName: 'Mehmet', lastName: 'Kaya', tcNo: '45678912345', birthDate: '1995-03-10', gender: 'male' as const }
-  ];
+  const [formError, setFormError] = useState('');
 
   useEffect(() => {
-    const totalPassengers = adultCount + childCount + infantCount;
-    const newPassengers: Passenger[] = [];
-    
-    for (let i = 0; i < adultCount; i++) {
-      newPassengers.push({
-        id: `adult-${i}`,
-        type: 'adult',
-        firstName: '',
-        lastName: '',
-        tcNo: '',
-        birthDate: '',
-        gender: 'male'
-      });
-    }
-    
-    for (let i = 0; i < childCount; i++) {
-      newPassengers.push({
-        id: `child-${i}`,
-        type: 'child',
-        firstName: '',
-        lastName: '',
-        tcNo: '',
-        birthDate: '',
-        gender: 'male'
-      });
-    }
-    
-    for (let i = 0; i < infantCount; i++) {
-      newPassengers.push({
-        id: `infant-${i}`,
-        type: 'infant',
-        firstName: '',
-        lastName: '',
-        tcNo: '',
-        birthDate: '',
-        gender: 'male'
-      });
-    }
-    
-    setPassengers(newPassengers);
+    setPassengers(prev => {
+      const buildSlots = (type: Passenger['type'], count: number): Passenger[] => {
+        const existing = prev.filter(p => p.type === type);
+        const kept = existing.slice(0, count);
+        const needed = count - kept.length;
+        const added: Passenger[] = [];
+        for (let i = 0; i < needed; i++) {
+          added.push({
+            id: `${type}-${kept.length + i}`,
+            type,
+            firstName: '',
+            lastName: '',
+            tcNo: '',
+            birthDate: '',
+            gender: 'male'
+          });
+        }
+        return [...kept, ...added];
+      };
+      return [
+        ...buildSlots('adult', adultCount),
+        ...buildSlots('child', childCount),
+        ...buildSlots('infant', infantCount),
+      ];
+    });
   }, [adultCount, childCount, infantCount]);
 
   const updatePassenger = (id: string, field: keyof Passenger, value: string) => {
@@ -110,34 +96,67 @@ const FlightBookingPage = () => {
     setShowSavedPassengers(null);
   };
 
+  const validateTcNo = (tc: string): boolean => {
+    if (tc.length !== 11 || !/^\d+$/.test(tc)) return false;
+    if (tc[0] === '0') return false;
+    const d = tc.split('').map(Number);
+    const oddSum = d[0] + d[2] + d[4] + d[6] + d[8];
+    const evenSum = d[1] + d[3] + d[5] + d[7];
+    if ((7 * oddSum - evenSum) % 10 !== d[9]) return false;
+    const totalSum = d.slice(0, 10).reduce((a, b) => a + b, 0);
+    return totalSum % 10 === d[10];
+  };
+
   const validateAndContinue = () => {
+    setFormError('');
+    // Uçuş seçimi kontrolü
+    if (!flightId) {
+      setFormError('Geçersiz uçuş. Lütfen uçuş arama sayfasından bir uçuş seçin.');
+      return;
+    }
     // Yolcu bilgileri kontrolü
     for (const passenger of passengers) {
       if (!passenger.firstName || !passenger.lastName || !passenger.tcNo || !passenger.birthDate) {
-        alert('Lütfen tüm yolcu bilgilerini eksiksiz doldurun.');
+        setFormError('Lütfen tüm yolcu bilgilerini eksiksiz doldurun.');
         return;
       }
-      if (passenger.tcNo.length !== 11) {
-        alert('TC Kimlik No 11 haneli olmalıdır.');
+      if (!validateTcNo(passenger.tcNo)) {
+        setFormError('Geçersiz TC Kimlik No. Lütfen kontrol ediniz.');
         return;
       }
     }
 
+    // Bebek > yetişkin validasyonu
+    if (infantCount > adultCount) {
+      setFormError('Her bebek için en az bir yetişkin gereklidir.');
+      return;
+    }
+
     // İletişim bilgileri kontrolü
     if (!contactInfo.email || !contactInfo.phone) {
-      alert('Lütfen iletişim bilgilerinizi eksiksiz doldurun.');
+      setFormError('Lütfen iletişim bilgilerinizi eksiksiz doldurun.');
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(contactInfo.email)) {
-      alert('Lütfen geçerli bir e-posta adresi girin.');
+      setFormError('Lütfen geçerli bir e-posta adresi girin.');
+      return;
+    }
+
+    const phoneDigits = contactInfo.phone.replace(/\D/g, '');
+    if (phoneDigits.length < 10) {
+      setFormError('Telefon numarası en az 10 haneli olmalıdır.');
       return;
     }
 
     // Koltuk seçimine geç
     const bookingData = {
       flightId,
+      flightNumber,
+      flightTime,
+      flightClass,
+      duration,
       from,
       to,
       date,
@@ -162,68 +181,22 @@ const FlightBookingPage = () => {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Header />
-      
+
       <main className="flex-1 pt-20">
-        {/* Progress Steps */}
-        <div className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-1 sm:space-x-3">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-red-600 text-white flex items-center justify-center font-semibold">
-                  1
-                </div>
-                <div className="hidden sm:block">
-                  <div className="text-sm font-semibold text-red-600">Yolcu Bilgileri</div>
-                  <div className="text-xs text-gray-500">Yolcu ve iletişim bilgileri</div>
-                </div>
-              </div>
-
-              <div className="flex-1 h-0.5 bg-gray-200 mx-1 sm:mx-4"></div>
-
-              <div className="flex items-center space-x-1 sm:space-x-3 opacity-50">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold">
-                  2
-                </div>
-                <div className="hidden sm:block">
-                  <div className="text-sm font-semibold text-gray-500">Koltuk Seçimi</div>
-                  <div className="text-xs text-gray-400">Koltuk ve ek hizmetler</div>
-                </div>
-              </div>
-
-              <div className="flex-1 h-0.5 bg-gray-200 mx-1 sm:mx-4"></div>
-
-              <div className="flex items-center space-x-1 sm:space-x-3 opacity-50">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold">
-                  3
-                </div>
-                <div className="hidden sm:block">
-                  <div className="text-sm font-semibold text-gray-500">Ek Hizmetler</div>
-                  <div className="text-xs text-gray-400">Bagaj, yemek, sigorta</div>
-                </div>
-              </div>
-
-              <div className="flex-1 h-0.5 bg-gray-200 mx-1 sm:mx-4"></div>
-
-              <div className="flex items-center space-x-1 sm:space-x-3 opacity-50">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center font-semibold">
-                  4
-                </div>
-                <div className="hidden sm:block">
-                  <div className="text-sm font-semibold text-gray-500">Ödeme</div>
-                  <div className="text-xs text-gray-400">Ödeme ve onay</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <BookingStepper currentStep={1} />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Sol Taraf - Form */}
             <div className="lg:col-span-2 space-y-6">
               {/* Yolcu Sayısı Seçimi */}
-              <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-6">Yolcu Sayısı</h2>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center">
+                    <i className="ri-group-line text-primary text-lg"></i>
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-900">Yolcu Sayısı</h2>
+                </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="border border-gray-200 rounded-xl p-4">
@@ -311,7 +284,7 @@ const FlightBookingPage = () => {
 
               {/* Yolcu Bilgileri */}
               {passengers.map((passenger, index) => (
-                <div key={passenger.id} className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
+                <div key={passenger.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-lg font-bold text-gray-900">
                       {index + 1}. Yolcu - {getPassengerTypeLabel(passenger.type)}
@@ -435,8 +408,13 @@ const FlightBookingPage = () => {
               ))}
 
               {/* İletişim Bilgileri */}
-              <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-6">İletişim Bilgileri</h3>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+                    <i className="ri-mail-line text-blue-600 text-lg"></i>
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900">İletişim Bilgileri</h3>
+                </div>
                 
                 <div className="space-y-4">
                   <div>
@@ -472,8 +450,11 @@ const FlightBookingPage = () => {
 
             {/* Sağ Taraf - Özet */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 sticky top-24">
-                <h3 className="text-lg font-bold text-gray-900 mb-6">Uçuş Özeti</h3>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 sticky top-24">
+                <div className="flex items-center gap-2 mb-6">
+                  <i className="ri-flight-takeoff-line text-primary text-xl"></i>
+                  <h3 className="text-lg font-bold text-gray-900">Uçuş Özeti</h3>
+                </div>
                 
                 <div className="space-y-4 mb-6">
                   <div className="flex items-start space-x-3">
@@ -519,12 +500,20 @@ const FlightBookingPage = () => {
                   </div>
                 </div>
 
+                {formError && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-sm text-red-700" role="alert">
+                    <i className="ri-error-warning-line text-lg flex-shrink-0"></i>
+                    <span>{formError}</span>
+                  </div>
+                )}
+
                 <button
                   type="button"
                   onClick={validateAndContinue}
-                  className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-colors whitespace-nowrap"
+                  className="w-full py-4 bg-gradient-to-r from-primary to-secondary hover:from-primary-dark hover:to-primary text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-[0.98]"
                 >
-                  Koltuk Seçimine Geç
+                  <span>Koltuk Seçimine Geç</span>
+                  <i className="ri-arrow-right-line text-lg"></i>
                 </button>
 
                 <div className="mt-6 space-y-3">

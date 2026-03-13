@@ -25,79 +25,152 @@ export default function FlightCard({ flight }: FlightCardProps) {
     const from = searchParams.get('from') || flight.departure.city;
     const to = searchParams.get('to') || flight.arrival.city;
     const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
-    
-    navigate(`/ucus-rezervasyon?flightId=${flight.id}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&date=${date}&price=${flight.price}`);
+
+    navigate(
+      `/ucus-rezervasyon?flightId=${flight.id}` +
+      `&from=${encodeURIComponent(from)}` +
+      `&to=${encodeURIComponent(to)}` +
+      `&date=${date}` +
+      `&price=${flight.price}` +
+      `&flightNumber=${encodeURIComponent(flight.flightNumber)}` +
+      `&departureTime=${encodeURIComponent(flight.departure.time)}` +
+      `&flightClass=${encodeURIComponent(flight.flightClass)}` +
+      `&duration=${encodeURIComponent(flight.duration)}`
+    );
   };
 
   return (
-    <div className={`rounded-2xl p-3 sm:p-6 shadow-md hover:shadow-lg transition-all border-l-4 border border-gray-100 ${isVip ? 'bg-amber-50 border-l-amber-500' : 'bg-white border-l-primary'}`}>
-      {/* Class badge */}
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-xs font-semibold text-gray-400 tracking-wider">{flight.flightNumber}</span>
-        {isVip ? (
-          <span className="flex items-center gap-1 bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">
-            <i className="ri-vip-crown-fill"></i> VIP
-          </span>
-        ) : (
-          <span className="flex items-center gap-1 bg-primary/10 text-primary text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">
-            <i className="ri-plane-line"></i> Normal
-          </span>
-        )}
-      </div>
-
-      <div className="grid grid-cols-3 sm:grid-cols-12 gap-2 sm:gap-4 items-center">
-        {/* Departure */}
-        <div className="sm:col-span-3">
-          <p className="text-xl sm:text-2xl font-bold text-gray-900">{flight.departure.time}</p>
-          <p className="text-sm sm:text-base font-semibold text-primary mt-1">{flight.departure.airport}</p>
-          <p className="text-xs sm:text-sm text-gray-400">{flight.departure.city}</p>
+    <div
+      className={`rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 border ${
+        isVip
+          ? 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200 hover:border-amber-300'
+          : 'bg-white border-gray-100 hover:border-red-100'
+      }`}
+    >
+      {/* VIP banner */}
+      {isVip && (
+        <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-1.5 flex items-center gap-2">
+          <i className="ri-vip-crown-fill text-white text-sm"></i>
+          <span className="text-white text-xs font-bold tracking-widest uppercase">VIP Sınıfı</span>
+          <span className="ml-auto text-amber-100 text-xs">Premium Konfor</span>
         </div>
+      )}
 
-        {/* Route line */}
-        <div className="sm:col-span-3 flex flex-col items-center">
-          <p className="text-xs text-gray-400 mb-2">{flight.duration}</p>
-          <div className="w-full flex items-center">
-            <div className="flex-1 border-t-2 border-dashed border-gray-300"></div>
-            <div className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center mx-1 sm:mx-2 bg-primary/10 rounded-full">
-              <i className="ri-plane-line text-sm sm:text-base text-primary"></i>
+      <div className="p-4 sm:p-5">
+        {/* Top row: flight number + class + direct badge */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isVip ? 'bg-amber-100' : 'bg-red-50'}`}>
+              <img src="/logo.png" alt="Bey Airlines" className="w-5 h-5 object-contain" />
             </div>
-            <div className="flex-1 border-t-2 border-dashed border-gray-300"></div>
-          </div>
-          <span className="mt-2 px-2 sm:px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 whitespace-nowrap">
-            {flight.type}
-          </span>
-        </div>
-
-        {/* Arrival */}
-        <div className="sm:col-span-3 text-right sm:text-left">
-          <p className="text-xl sm:text-2xl font-bold text-gray-900">{flight.arrival.time}</p>
-          <p className="text-sm sm:text-base font-semibold text-primary mt-1">{flight.arrival.airport}</p>
-          <p className="text-xs sm:text-sm text-gray-400">{flight.arrival.city}</p>
-        </div>
-
-        {/* Price & CTA */}
-        <div className="col-span-3 sm:col-span-3 flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 sm:gap-0 mt-3 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-100">
-          <div className="sm:text-right">
-            <p className="text-2xl sm:text-3xl font-bold text-primary">{flight.price.toLocaleString('tr-TR')} TL</p>
-            <p className="text-xs text-gray-400 mt-1">kişi başı</p>
-            <div className="flex gap-2 mt-2 sm:mt-3 sm:justify-end">
-              <div className="flex items-center gap-1" title={flight.baggage ? 'Bagaj Dahil' : 'Bagaj Yok'}>
-                <i className={`ri-luggage-cart-line text-base ${flight.baggage ? 'text-green-500' : 'text-gray-300'}`}></i>
-              </div>
-              <div className="flex items-center gap-1" title={flight.meal ? 'Yemek Dahil' : 'Yemek Yok'}>
-                <i className={`ri-restaurant-line text-base ${flight.meal ? 'text-green-500' : 'text-gray-300'}`}></i>
-              </div>
-              <div className="flex items-center gap-1" title={flight.changeable ? 'Değiştirilebilir' : 'Değiştirilemez'}>
-                <i className={`ri-refresh-line text-base ${flight.changeable ? 'text-green-500' : 'text-gray-300'}`}></i>
-              </div>
+            <div>
+              <p className="text-xs font-bold text-gray-700 leading-none">Bey Airlines</p>
+              <p className="text-[10px] text-gray-400 mt-0.5">{flight.flightNumber}</p>
             </div>
           </div>
-          <button
-            onClick={handleSelectFlight}
-            className={`sm:w-full mt-0 sm:mt-3 font-semibold py-3 px-6 sm:px-0 rounded-xl transition-colors whitespace-nowrap cursor-pointer text-sm ${isVip ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-primary hover:bg-red-700 text-white'}`}
-          >
-            Seç
-          </button>
+
+          <div className="flex items-center gap-2">
+            <span className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
+              flight.type === 'Direkt'
+                ? 'bg-green-100 text-green-700'
+                : 'bg-blue-100 text-blue-700'
+            }`}>
+              <i className={`${flight.type === 'Direkt' ? 'ri-arrow-right-line' : 'ri-route-line'} text-xs`}></i>
+              {flight.type}
+            </span>
+            {!isVip && (
+              <span className="text-xs text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full font-medium">
+                Ekonomi
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Main flight info */}
+        <div className="grid grid-cols-12 gap-3 items-center">
+          {/* Departure */}
+          <div className="col-span-4">
+            <p className="text-2xl sm:text-3xl font-extrabold text-gray-900 leading-none">{flight.departure.time}</p>
+            <p className={`text-sm font-bold mt-1.5 ${isVip ? 'text-amber-600' : 'text-primary'}`}>
+              {flight.departure.airport}
+            </p>
+            <p className="text-xs text-gray-400 mt-0.5">{flight.departure.city}</p>
+          </div>
+
+          {/* Route visualization */}
+          <div className="col-span-4 flex flex-col items-center gap-1.5">
+            <p className="text-xs font-semibold text-gray-500 bg-gray-50 px-2.5 py-0.5 rounded-full">
+              {flight.duration}
+            </p>
+            <div className="w-full flex items-center gap-1">
+              <div className={`w-2 h-2 rounded-full border-2 flex-shrink-0 ${isVip ? 'border-amber-400' : 'border-primary'}`}></div>
+              <div className={`flex-1 h-px ${isVip ? 'bg-amber-300' : 'bg-red-200'} relative`}>
+                <div className={`absolute inset-0 border-t border-dashed ${isVip ? 'border-amber-300' : 'border-red-300'}`}></div>
+              </div>
+              <div className={`flex-shrink-0 ${isVip ? 'text-amber-500' : 'text-primary'}`}>
+                <i className="ri-plane-fill text-base transform rotate-0"></i>
+              </div>
+              <div className={`flex-1 h-px ${isVip ? 'bg-amber-300' : 'bg-red-200'} relative`}>
+                <div className={`absolute inset-0 border-t border-dashed ${isVip ? 'border-amber-300' : 'border-red-300'}`}></div>
+              </div>
+              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isVip ? 'bg-amber-400' : 'bg-primary'}`}></div>
+            </div>
+          </div>
+
+          {/* Arrival */}
+          <div className="col-span-4 text-right">
+            <p className="text-2xl sm:text-3xl font-extrabold text-gray-900 leading-none">{flight.arrival.time}</p>
+            <p className={`text-sm font-bold mt-1.5 ${isVip ? 'text-amber-600' : 'text-primary'}`}>
+              {flight.arrival.airport}
+            </p>
+            <p className="text-xs text-gray-400 mt-0.5">{flight.arrival.city}</p>
+          </div>
+        </div>
+
+        {/* Bottom row: services + price + button */}
+        <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4 pt-4 border-t ${isVip ? 'border-amber-100' : 'border-gray-100'}`}>
+          {/* Service badges */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg font-medium ${
+              flight.baggage ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-400 line-through'
+            }`}>
+              <i className={`ri-luggage-cart-line ${flight.baggage ? 'text-green-500' : 'text-gray-300'}`}></i>
+              Bagaj
+            </span>
+            <span className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg font-medium ${
+              flight.meal ? 'bg-orange-50 text-orange-700' : 'bg-gray-50 text-gray-400 line-through'
+            }`}>
+              <i className={`ri-restaurant-line ${flight.meal ? 'text-orange-500' : 'text-gray-300'}`}></i>
+              Yemek
+            </span>
+            <span className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg font-medium ${
+              flight.changeable ? 'bg-blue-50 text-blue-700' : 'bg-gray-50 text-gray-400 line-through'
+            }`}>
+              <i className={`ri-refresh-line ${flight.changeable ? 'text-blue-500' : 'text-gray-300'}`}></i>
+              Değişim
+            </span>
+          </div>
+
+          {/* Price + CTA */}
+          <div className="flex items-center gap-4 sm:flex-shrink-0">
+            <div className="text-right">
+              <p className="text-[10px] text-gray-400 leading-none mb-0.5">kişi başı</p>
+              <p className={`text-2xl font-extrabold leading-none ${isVip ? 'text-amber-600' : 'text-primary'}`}>
+                {flight.price.toLocaleString('tr-TR')} ₺
+              </p>
+            </div>
+            <button
+              onClick={handleSelectFlight}
+              className={`flex-shrink-0 font-bold py-3 px-6 rounded-xl transition-all cursor-pointer text-sm flex items-center gap-2 shadow-sm hover:shadow-md active:scale-[0.97] ${
+                isVip
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white'
+                  : 'bg-gradient-to-r from-primary to-secondary hover:from-primary-dark hover:to-primary text-white'
+              }`}
+            >
+              Seç
+              <i className="ri-arrow-right-line text-sm"></i>
+            </button>
+          </div>
         </div>
       </div>
     </div>

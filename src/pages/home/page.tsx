@@ -4,8 +4,10 @@ import HeroSection from './components/HeroSection';
 import PopularDestinations from './components/PopularDestinations';
 import CampaignsSection from './components/CampaignsSection';
 import MobileApp from './components/MobileApp';
+import { usePageTitle } from '../../hooks/usePageTitle';
 
 export default function HomePage() {
+  usePageTitle("Türkiye'nin Yeni Nesil Havayolu | Uçak Bileti Al");
   return (
     <div className="min-h-screen">
       <Header />
