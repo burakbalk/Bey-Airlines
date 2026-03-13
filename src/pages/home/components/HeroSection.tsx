@@ -38,7 +38,7 @@ export default function HeroSection() {
       </div>
 
       {/* Content wrapper — yazı üstte, form altta */}
-      <div className="relative z-10 flex flex-col justify-between flex-1 px-4 pt-12 sm:pt-16 pb-8 sm:pb-10">
+      <div className="relative z-10 flex flex-col justify-center flex-1 px-4 pt-4 pb-8 gap-6 sm:gap-8">
         {/* Hero Text */}
         <div className="text-center max-w-4xl mx-auto">
           <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-1.5 mb-4 sm:mb-6">
