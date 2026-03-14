@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { logger } from '../utils/logger';
 
 export interface Campaign {
   id: string;
@@ -32,12 +33,12 @@ export function useCampaigns() {
         .eq('is_active', true)
         .order('created_at', { ascending: false });
       if (queryError) {
-        console.error('[useCampaigns] Supabase hatası:', queryError.message, queryError.details);
+        logger.error('[useCampaigns] Supabase hatası:', queryError.message, queryError.details);
         setError(queryError.message);
       }
       if (data) setCampaigns(data as Campaign[]);
     } catch (err) {
-      console.error('[useCampaigns] Beklenmeyen hata:', err);
+      logger.error('[useCampaigns] Beklenmeyen hata:', err);
       setError('Kampanyalar yüklenirken bir hata oluştu');
     }
     setLoading(false);
@@ -56,36 +57,44 @@ export function useCampaignBySlug(slug: string | undefined) {
 
   useEffect(() => {
     if (!slug) { setLoading(false); return; }
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
 
-    const fetchCampaign = async () => {
-      setLoading(true);
-      setError(null);
-      const { data, error: fetchError } = await supabase
-        .from('campaigns')
-        .select('*')
-        .eq('slug', slug)
-        .single();
-
-      if (fetchError) {
-        console.error('[useCampaignBySlug] Supabase hatası:', fetchError.message);
-        setError(fetchError.message);
-      }
-      if (data) {
-        setCampaign(data as Campaign);
-        // Benzer kampanyaları getir
-        const { data: similar } = await supabase
+    (async () => {
+      try {
+        const { data, error: fetchError } = await supabase
           .from('campaigns')
           .select('*')
-          .eq('is_active', true)
-          .eq('type', data.type)
-          .neq('id', data.id)
-          .limit(3);
-        if (similar) setSimilarCampaigns(similar as Campaign[]);
-      }
-      setLoading(false);
-    };
+          .eq('slug', slug)
+          .single();
 
-    fetchCampaign();
+        if (cancelled) return;
+        if (fetchError) {
+          logger.error('[useCampaignBySlug] Supabase hatası:', fetchError.message);
+          setError(fetchError.message);
+        }
+        if (data) {
+          setCampaign(data as Campaign);
+          const { data: similar } = await supabase
+            .from('campaigns')
+            .select('*')
+            .eq('is_active', true)
+            .eq('type', data.type)
+            .neq('id', data.id)
+            .limit(3);
+          if (cancelled) return;
+          if (similar) setSimilarCampaigns(similar as Campaign[]);
+        }
+      } catch (err) {
+        if (cancelled) return;
+        logger.error('[useCampaignBySlug] Beklenmeyen hata:', err);
+        setError('Kampanya yüklenirken bir hata oluştu');
+      }
+      if (!cancelled) setLoading(false);
+    })();
+
+    return () => { cancelled = true; };
   }, [slug]);
 
   return { campaign, similarCampaigns, loading, error };
@@ -104,7 +113,7 @@ export function useAdminCampaigns() {
       .select('*')
       .order('created_at', { ascending: false });
     if (queryError) {
-      console.error('[useAdminCampaigns] Supabase hatası:', queryError.message);
+      logger.error('[useAdminCampaigns] Supabase hatası:', queryError.message);
       setError(queryError.message);
     }
     if (data) setCampaigns(data as Campaign[]);

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../../../components/admin/AdminLayout';
 import { supabase } from '../../../lib/supabase';
+import { logger } from '../../../utils/logger';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -40,73 +41,76 @@ export default function AdminCustomersPage() {
 
   const fetchCustomers = async () => {
     setLoading(true);
+    try {
+      // Fetch profiles
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, phone, birth_date, role, created_at')
+        .order('created_at', { ascending: false });
 
-    // Fetch profiles
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
+      if (profilesError) throw new Error(profilesError.message);
+      if (!profiles) { setLoading(false); return; }
 
-    if (!profiles) {
-      setLoading(false);
-      return;
-    }
+      // Reservation sayısı için COUNT aggregate — tüm satırları çekmek yerine
+      const { data: reservationCounts, error: countError } = await supabase
+        .from('reservations')
+        .select('user_id')
+        .not('user_id', 'is', null)
+        .limit(5000);
 
-    // Fetch reservation counts per user
-    const { data: reservationCounts } = await supabase
-      .from('reservations')
-      .select('user_id');
+      if (countError) throw new Error(countError.message);
 
-    const countMap: Record<string, number> = {};
-    if (reservationCounts) {
-      reservationCounts.forEach((r: { user_id: string | null }) => {
-        if (r.user_id) {
-          countMap[r.user_id] = (countMap[r.user_id] || 0) + 1;
-        }
-      });
-    }
-
-    // Fetch auth emails via profiles join - we'll use the profile id to match
-    // Since we can't directly query auth.users, we'll show name from profile
-    const customerList: CustomerDisplay[] = profiles.map((p: Profile) => ({
-      id: p.id,
-      name: [p.first_name, p.last_name].filter(Boolean).join(' ') || 'İsimsiz Kullanıcı',
-      email: p.id, // Will be replaced if we can get email
-      phone: p.phone || '-',
-      registrationDate: new Date(p.created_at).toLocaleDateString('tr-TR', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      }),
-      totalReservations: countMap[p.id] || 0,
-      role: p.role || 'user',
-    }));
-
-    // Try to get emails from reservations contact_email
-    const { data: emailData } = await supabase
-      .from('reservations')
-      .select('user_id, contact_email')
-      .not('user_id', 'is', null);
-
-    const emailMap: Record<string, string> = {};
-    if (emailData) {
-      emailData.forEach((r: { user_id: string | null; contact_email: string | null }) => {
-        if (r.user_id && r.contact_email) {
-          emailMap[r.user_id] = r.contact_email;
-        }
-      });
-    }
-
-    customerList.forEach(c => {
-      if (emailMap[c.id]) {
-        c.email = emailMap[c.id];
-      } else {
-        c.email = '-';
+      const countMap: Record<string, number> = {};
+      if (reservationCounts) {
+        reservationCounts.forEach((r: { user_id: string | null }) => {
+          if (r.user_id) {
+            countMap[r.user_id] = (countMap[r.user_id] || 0) + 1;
+          }
+        });
       }
-    });
 
-    setCustomers(customerList);
-    setLoading(false);
+      const customerList: CustomerDisplay[] = profiles.map((p: Profile) => ({
+        id: p.id,
+        name: [p.first_name, p.last_name].filter(Boolean).join(' ') || 'İsimsiz Kullanıcı',
+        email: '-',
+        phone: p.phone || '-',
+        registrationDate: new Date(p.created_at).toLocaleDateString('tr-TR', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        }),
+        totalReservations: countMap[p.id] || 0,
+        role: p.role || 'user',
+      }));
+
+      // E-posta bilgisini reservations'dan çek (sadece gerekli kolonlar)
+      const { data: emailData } = await supabase
+        .from('reservations')
+        .select('user_id, contact_email')
+        .not('user_id', 'is', null)
+        .not('contact_email', 'is', null)
+        .limit(5000);
+
+      const emailMap: Record<string, string> = {};
+      if (emailData) {
+        emailData.forEach((r: { user_id: string | null; contact_email: string | null }) => {
+          if (r.user_id && r.contact_email && !emailMap[r.user_id]) {
+            emailMap[r.user_id] = r.contact_email;
+          }
+        });
+      }
+
+      customerList.forEach(c => {
+        if (emailMap[c.id]) c.email = emailMap[c.id];
+      });
+
+      setCustomers(customerList);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Müşteriler yüklenirken hata oluştu';
+      logger.error('[fetchCustomers]', message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const filteredCustomers = customers.filter((customer) => {

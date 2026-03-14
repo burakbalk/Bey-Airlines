@@ -26,42 +26,16 @@ const CERTIFICATIONS = [
 export default function Footer() {
   return (
     <footer className="bg-gray-950 text-white">
-      {/* Newsletter Bar */}
-      <div className="border-b border-white/[0.06] py-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div className="text-center sm:text-left">
-              <h3 className="text-base font-bold text-white mb-1 flex items-center gap-2 justify-center sm:justify-start">
-                <i className="ri-mail-send-line text-primary text-lg"></i>
-                Kampanyalardan Haberdar Olun
-              </h3>
-              <p className="text-gray-500 text-sm">En iyi fırsatları ilk siz duyun</p>
-            </div>
-            <div className="flex w-full sm:w-auto gap-2">
-              <input
-                type="email"
-                placeholder="E-posta adresiniz"
-                aria-label="E-posta adresiniz"
-                className="flex-1 sm:w-72 bg-white/[0.06] border border-white/[0.08] text-white placeholder-gray-600 px-4 py-3 rounded-xl text-sm focus:outline-none focus:border-primary/50 focus:bg-white/[0.08] transition-all"
-              />
-              <button type="button" className="bg-primary hover:bg-primary-dark text-white px-5 py-3 rounded-xl text-sm font-semibold transition-all flex-shrink-0 flex items-center gap-1.5">
-                <i className="ri-send-plane-fill"></i>
-                Abone Ol
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Main Footer */}
-      <div className="pt-16 pb-10">
+      <div className="pt-10 sm:pt-16 pb-8 sm:pb-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-12 mb-12">
             {/* Brand */}
             <div>
               <Link to="/" className="flex items-center gap-2 mb-5 group">
                 <img src="/logo.png" alt="Bey Airlines" className="h-11 w-11 object-contain brightness-0 invert group-hover:brightness-100 transition-all duration-300" />
-                <span className="text-xl font-bold tracking-tight">
+                <span className="text-[1.4rem] font-playfair font-bold italic uppercase tracking-[0.12em] text-white leading-none">
                   Bey <span className="text-red-400">Airlines</span>
                 </span>
               </Link>
@@ -154,8 +128,8 @@ export default function Footer() {
                   </div>
                   <div>
                     <p className="font-medium text-white text-sm mb-0.5">Çağrı Merkezi</p>
-                    <a href="tel:+908501234567" className="text-gray-500 hover:text-white transition-colors text-sm">
-                      0850 123 45 67
+                    <a href="tel:4447239" className="text-gray-500 hover:text-white transition-colors text-sm">
+                      444 7 239
                     </a>
                     <p className="text-gray-700 text-xs mt-0.5">7/24 Destek</p>
                   </div>

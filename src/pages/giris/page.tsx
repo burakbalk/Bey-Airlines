@@ -2,6 +2,7 @@ import { useState, FormEvent, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { logger } from '../../utils/logger';
 import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
 import { usePageTitle } from '../../hooks/usePageTitle';
@@ -56,7 +57,7 @@ export default function GirisPage() {
       // Navigation will happen via the useEffect watching user state
     } catch (err) {
       setError('Bir hata oluştu. Lütfen tekrar deneyin.');
-      console.error('Login error:', err);
+      logger.error('Login error:', err);
     } finally {
       setLoading(false);
     }

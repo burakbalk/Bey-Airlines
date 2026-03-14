@@ -27,7 +27,7 @@ BEGIN
   );
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
@@ -224,7 +224,7 @@ RETURNS BOOLEAN AS $$
     SELECT 1 FROM public.profiles
     WHERE id = auth.uid() AND role = 'admin'
   );
-$$ LANGUAGE sql SECURITY DEFINER;
+$$ LANGUAGE sql SECURITY DEFINER SET search_path = public;
 
 -- PROFILES
 CREATE POLICY "Users can view own profile" ON profiles FOR SELECT USING (auth.uid() = id);
@@ -240,7 +240,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 DROP TRIGGER IF EXISTS prevent_role_change_trigger ON profiles;
 CREATE TRIGGER prevent_role_change_trigger
@@ -264,7 +264,13 @@ CREATE POLICY "Users can view own reservations" ON reservations FOR SELECT USING
 CREATE POLICY "Users can create reservations" ON reservations FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Admins can manage all reservations" ON reservations FOR ALL USING (is_admin());
 CREATE POLICY "Anon can create reservations" ON reservations FOR INSERT WITH CHECK (user_id IS NULL);
-CREATE POLICY "Users can cancel own reservations" ON reservations FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (status = 'İptal Edildi');
+-- İptal politikası: Kullanıcı sadece kendi rezervasyonunu güncelleyebilir.
+-- WITH CHECK: Yalnızca status='İptal Edildi' yazılabilir — başka alan değişikliğine izin yok.
+-- NOT: Güvenli iptal için cancel_reservation_by_pnr() fonksiyonu kullanılmalıdır.
+-- Bu policy doğrudan UPDATE isteği gelirse son savunma hattıdır.
+CREATE POLICY "Users can cancel own reservations" ON reservations FOR UPDATE
+  USING (auth.uid() = user_id AND status NOT IN ('İptal Edildi', 'Tamamlandı'))
+  WITH CHECK (status = 'İptal Edildi');
 
 -- PASSENGERS
 CREATE POLICY "Users can view own passengers" ON passengers FOR SELECT
@@ -273,6 +279,15 @@ CREATE POLICY "Users can create passengers" ON passengers FOR INSERT
   WITH CHECK (EXISTS (SELECT 1 FROM reservations r WHERE r.id = reservation_id AND r.user_id = auth.uid()));
 CREATE POLICY "Anon can create passengers" ON passengers FOR INSERT
   WITH CHECK (EXISTS (SELECT 1 FROM reservations r WHERE r.id = reservation_id AND r.user_id IS NULL));
+-- Kullanıcı sadece kendi rezervasyonuna ait yolcuyu güncelleyebilir (check-in için)
+-- Rezervasyon iptal/tamamlanmış değilse güncellemeye izin ver
+CREATE POLICY "Users can update own passengers" ON passengers FOR UPDATE
+  USING (EXISTS (
+    SELECT 1 FROM reservations r
+    WHERE r.id = reservation_id
+      AND r.user_id = auth.uid()
+      AND r.status NOT IN ('İptal Edildi', 'Tamamlandı')
+  ));
 CREATE POLICY "Admins can manage passengers" ON passengers FOR ALL USING (is_admin());
 
 -- SAVED_PASSENGERS
@@ -300,7 +315,12 @@ CREATE POLICY "Admins can manage faq" ON faq FOR ALL USING (is_admin());
 
 -- PNR ile rezervasyon sorgulama (misafir + giriş yapmış kullanıcılar)
 -- SECURITY DEFINER: RLS'i bypass ederek sadece verilen PNR'a ait veriyi döndürür.
--- Brute-force riski düşüktür (BEY + 6 karakter ≈ 2.1 milyar kombinasyon).
+-- Brute-force koruması: Supabase Edge'de rate limiting yapılandırılmalıdır.
+--   Önerilen: Supabase Dashboard > API > Rate Limits veya nginx/Cloudflare kuralı ile
+--   aynı IP'den dakikada max 10 RPC çağrısına izin ver.
+--   PNR formatı BEY + 6 alfanumerik ≈ 2.1 milyar kombinasyon olduğundan
+--   rate limiting olmadan da pratik brute-force süresi çok yüksektir,
+--   ancak production ortamında rate limiting eklenmesi şiddetle tavsiye edilir.
 -- Passengers ve flight bilgilerini de içerir — tek sorgu yeterlidir.
 CREATE OR REPLACE FUNCTION get_reservation_by_pnr(p_pnr TEXT)
 RETURNS JSONB AS $$
@@ -357,7 +377,7 @@ BEGIN
 
   RETURN v_result;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 CREATE OR REPLACE FUNCTION increment_booked_seats(p_flight_id INT, p_count INT)
 RETURNS BOOLEAN AS $$
@@ -371,12 +391,13 @@ BEGIN
   GET DIAGNOSTICS v_updated = ROW_COUNT;
   RETURN v_updated > 0;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- HAFTALIK UÇUŞ ÜRETİCİ FONKSİYON
 -- Gün bazlı üretim: her schedule sadece kendi gününde uçuş oluşturur
 -- flight_number = flight_code (BEY101, BEY201...) — her hafta aynı kod
 -- capacity = aircraft.capacity — uçağa göre otomatik
+-- GÜVENLİK: Sadece admin çağırabilir. Cron Edge Function service_role ile çağırır.
 -- =============================================
 
 CREATE OR REPLACE FUNCTION generate_weekly_flights(start_date DATE, num_weeks INT DEFAULT 4)
@@ -387,6 +408,12 @@ DECLARE
   sched RECORD;
   ac_capacity INT;
 BEGIN
+  -- GÜVENLİK: Sadece admin veya service_role çağırabilir
+  -- service_role: auth.uid() = NULL (Edge Function/cron ortamı)
+  IF auth.uid() IS NOT NULL AND NOT is_admin() THEN
+    RAISE EXCEPTION 'Yetkisiz erişim: generate_weekly_flights sadece admin tarafından çağrılabilir';
+  END IF;
+
   FOR i IN 0..(num_weeks * 7 - 1) LOOP
     current_date_iter := start_date + i;
     -- PostgreSQL ISODOW: 1=Pazartesi, 7=Pazar
@@ -423,20 +450,29 @@ BEGIN
     END LOOP;
   END LOOP;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- ADMİN FİYAT GÜNCELLEME FONKSİYONU
 -- Schedule fiyatını ve gelecek uçuşların fiyatını günceller
+-- GÜVENLİK: Sadece admin çağırabilir.
 CREATE OR REPLACE FUNCTION update_flight_price(p_flight_code TEXT, p_new_price DECIMAL)
 RETURNS void AS $$
 BEGIN
+  -- GÜVENLİK: Sadece admin çağırabilir
+  IF NOT is_admin() THEN
+    RAISE EXCEPTION 'Yetkisiz erişim: update_flight_price sadece admin tarafından çağrılabilir';
+  END IF;
+  -- Negatif fiyat engelle
+  IF p_new_price <= 0 THEN
+    RAISE EXCEPTION 'Geçersiz fiyat: Fiyat sıfırdan büyük olmalıdır';
+  END IF;
   -- Schedule tablosundaki baz fiyatı güncelle
   UPDATE flight_schedule SET price = p_new_price WHERE flight_code = p_flight_code;
   -- Gelecek tarihli uçuşların fiyatını güncelle (rezervasyonlu olanlar dahil — bilet fiyatı sabit kalır)
   UPDATE flights SET price = p_new_price
   WHERE flight_number = p_flight_code AND flight_date >= CURRENT_DATE;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- =============================================
 -- SEED DATA
@@ -553,12 +589,13 @@ BEGIN
   SELECT role INTO v_role FROM public.profiles WHERE id = p_user_id;
   RETURN v_role;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- =============================================
 -- Seed data init — RLS bypass
--- SECURITY DEFINER: anonim kullanıcılar için tablolar boşsa seed data ekler.
+-- SECURITY DEFINER: Sadece admin çağırabilir.
 -- destinations ve faq INSERT RLS'ini bypass eder (sadece boşsa ekler).
+-- GÜVENLİK: Anonim kullanıcılar bu fonksiyonu çağıramaz.
 -- =============================================
 CREATE OR REPLACE FUNCTION seed_initial_data(
   p_destinations JSONB DEFAULT NULL,
@@ -570,6 +607,11 @@ DECLARE
   faq_count  INT;
   result     JSONB := '{}';
 BEGIN
+  -- GÜVENLİK: Sadece admin çağırabilir (service_role hariç — auth.uid() NULL ise izin ver)
+  IF auth.uid() IS NOT NULL AND NOT is_admin() THEN
+    RAISE EXCEPTION 'Yetkisiz erişim: seed_initial_data sadece admin tarafından çağrılabilir';
+  END IF;
+
   -- DESTINATIONS
   SELECT COUNT(*) INTO dest_count FROM public.destinations;
   IF dest_count = 0 AND p_destinations IS NOT NULL THEN
@@ -610,5 +652,83 @@ BEGIN
 
   RETURN result;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+-- =============================================
+-- GÜVENLİ REZERVASYON İPTAL FONKSİYONU
+-- Üç katmanlı doğrulama: PNR + yolcu soyadı + user_id (veya misafir)
+-- SECURITY DEFINER: RLS'i bypass eder — doğrulama bu fonksiyon içinde yapılır.
+-- İş kuralları:
+--   1. PNR mevcut olmalı ve 'İptal Edildi' / 'Tamamlandı' statüsünde olmamalı
+--   2. Yolcu soyadı passengers tablosunda eşleşmeli (case-insensitive)
+--   3. Giriş yapmış kullanıcı: rezervasyon kendisine ait olmalı
+--      Misafir kullanıcı: rezervasyonun user_id'si NULL olmalı
+--   4. Uçuş 2 saat veya daha az kalmışsa iptal edilemez
+-- Dönüş: JSONB { success: bool, message: text }
+-- =============================================
+CREATE OR REPLACE FUNCTION cancel_reservation_by_pnr(
+  p_pnr       TEXT,
+  p_last_name TEXT
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_reservation RECORD;
+  v_passenger   RECORD;
+  v_departure   TIMESTAMPTZ;
+BEGIN
+  -- 1. PNR'ı bul
+  SELECT r.id, r.user_id, r.status, r.flight_id, r.flight_date, r.flight_time
+  INTO v_reservation
+  FROM public.reservations r
+  WHERE r.pnr = UPPER(TRIM(p_pnr));
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Rezervasyon bulunamadı');
+  END IF;
+
+  -- 2. Statü kontrolü
+  IF v_reservation.status IN ('İptal Edildi', 'Tamamlandı') THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Bu rezervasyon zaten iptal edilmiş veya tamamlanmış');
+  END IF;
+
+  -- 3. Kullanıcı yetkisi kontrolü
+  IF auth.uid() IS NOT NULL THEN
+    -- Giriş yapmış kullanıcı: kendi rezervasyonu olmalı
+    IF v_reservation.user_id IS DISTINCT FROM auth.uid() THEN
+      RETURN jsonb_build_object('success', false, 'message', 'Bu rezervasyonu iptal etme yetkiniz yok');
+    END IF;
+  ELSE
+    -- Misafir: rezervasyonun user_id'si NULL olmalı
+    IF v_reservation.user_id IS NOT NULL THEN
+      RETURN jsonb_build_object('success', false, 'message', 'Giriş yapmanız gerekmektedir');
+    END IF;
+  END IF;
+
+  -- 4. Yolcu soyadı doğrulaması (case-insensitive, Türkçe karakter toleranslı)
+  SELECT p.id INTO v_passenger
+  FROM public.passengers p
+  WHERE p.reservation_id = v_reservation.id
+    AND LOWER(p.last_name) = LOWER(TRIM(p_last_name))
+  LIMIT 1;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Soyad doğrulaması başarısız');
+  END IF;
+
+  -- 5. Uçuş zamanı kontrolü — 2 saatten az kaldıysa iptal edilemez
+  IF v_reservation.flight_date IS NOT NULL AND v_reservation.flight_time IS NOT NULL THEN
+    v_departure := (v_reservation.flight_date::TEXT || ' ' || v_reservation.flight_time::TEXT)::TIMESTAMPTZ;
+    IF v_departure - now() < INTERVAL '2 hours' THEN
+      RETURN jsonb_build_object('success', false, 'message', 'Uçuşa 2 saatten az kaldığında rezervasyon iptal edilemez');
+    END IF;
+  END IF;
+
+  -- 6. İptal işlemi
+  UPDATE public.reservations
+  SET status = 'İptal Edildi'
+  WHERE id = v_reservation.id;
+
+  RETURN jsonb_build_object('success', true, 'message', 'Rezervasyon başarıyla iptal edildi');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 

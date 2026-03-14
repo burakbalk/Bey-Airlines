@@ -16,7 +16,7 @@ function SkeletonCampaign() {
 export default function CampaignsSection() {
   const { campaigns, loading } = useCampaigns();
 
-  const featuredCampaign = campaigns.find(c => c.type === 'vip');
+  const featuredCampaign = campaigns.find(c => c.type === 'vip') ?? campaigns[0] ?? null;
   const otherCampaigns = campaigns.filter(c => c.id !== featuredCampaign?.id).slice(0, 2);
 
   return (

@@ -246,7 +246,7 @@ export default function AccountPage() {
             {/* Sidebar */}
             <div className="lg:col-span-1">
               <div className="bg-white rounded-2xl shadow-md p-4 border border-gray-100">
-                <nav className="space-y-1">
+                <nav className="flex lg:flex-col gap-1 overflow-x-auto pb-1 lg:pb-0 lg:space-y-1">
                   {[
                     { key: 'profile', icon: 'ri-user-line', label: 'Profilim' },
                     { key: 'reservations', icon: 'ri-flight-takeoff-line', label: 'Rezervasyonlarım', badge: reservations.length },
@@ -255,7 +255,7 @@ export default function AccountPage() {
                     <button
                       key={item.key}
                       onClick={() => setActiveSection(item.key as typeof activeSection)}
-                      className={`w-full text-left px-4 py-3 rounded-xl font-medium transition-colors whitespace-nowrap cursor-pointer flex items-center justify-between text-sm ${
+                      className={`flex-shrink-0 lg:w-full text-left px-4 py-3 rounded-xl font-medium transition-colors whitespace-nowrap cursor-pointer flex items-center justify-between text-sm ${
                         activeSection === item.key ? 'bg-red-600 text-white shadow-md' : 'text-gray-700 hover:bg-red-50 hover:text-red-600'
                       }`}
                     >
@@ -468,8 +468,8 @@ export default function AccountPage() {
 
       {/* Rezervasyon Detay Modal */}
       {showReservationModal && selectedReservation && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowReservationModal(false)}>
-          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4" onClick={() => setShowReservationModal(false)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-3xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             {/* Bilet Üst Kısım */}
             <div className="bg-gradient-to-br from-red-600 to-red-700 p-4 sm:p-8 text-white relative overflow-hidden">
               <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32"></div>
@@ -492,25 +492,25 @@ export default function AccountPage() {
                   </button>
                 </div>
 
-                <div className="flex items-center justify-between mb-6">
-                  <div className="text-center">
+                <div className="flex items-center justify-between mb-6 gap-2">
+                  <div className="text-center min-w-0">
                     <p className="text-red-200 text-xs mb-1">Kalkış</p>
-                    <p className="text-2xl sm:text-4xl font-bold mb-1">{selectedReservation.route.split(' - ')[0] || '-'}</p>
-                    <p className="text-sm text-red-100">{selectedReservation.flight_date}</p>
-                    <p className="text-sm text-red-100">{selectedReservation.flight_time}</p>
+                    <p className="text-lg sm:text-3xl font-bold mb-1 truncate">{selectedReservation.route.split(' - ')[0] || '-'}</p>
+                    <p className="text-xs sm:text-sm text-red-100">{selectedReservation.flight_date}</p>
+                    <p className="text-xs sm:text-sm text-red-100">{selectedReservation.flight_time}</p>
                   </div>
-                  <div className="flex-1 px-6">
+                  <div className="flex-shrink-0 px-2 sm:px-6">
                     <div className="flex items-center justify-center gap-2 mb-2">
-                      <div className="h-px bg-white/30 flex-1"></div>
-                      <i className="ri-plane-fill text-xl"></i>
-                      <div className="h-px bg-white/30 flex-1"></div>
+                      <div className="h-px bg-white/30 w-6 sm:flex-1"></div>
+                      <i className="ri-plane-fill text-lg sm:text-xl"></i>
+                      <div className="h-px bg-white/30 w-6 sm:flex-1"></div>
                     </div>
                   </div>
-                  <div className="text-center">
+                  <div className="text-center min-w-0">
                     <p className="text-red-200 text-xs mb-1">Varış</p>
-                    <p className="text-2xl sm:text-4xl font-bold mb-1">{selectedReservation.route.split(' - ')[1] || '-'}</p>
-                    <p className="text-sm text-red-100">{selectedReservation.flight_date}</p>
-                    <p className="text-sm text-red-100">-</p>
+                    <p className="text-lg sm:text-3xl font-bold mb-1 truncate">{selectedReservation.route.split(' - ')[1] || '-'}</p>
+                    <p className="text-xs sm:text-sm text-red-100">{selectedReservation.flight_date}</p>
+                    <p className="text-xs sm:text-sm text-red-100">-</p>
                   </div>
                 </div>
               </div>
@@ -556,7 +556,7 @@ export default function AccountPage() {
                 <div>
                   <h3 className="text-sm font-semibold text-gray-500 mb-3">Ek Hizmetler</h3>
                   <div className="space-y-2">
-                    {selectedReservation.extra_services?.baggage?.map((bag: string, idx: number) => (
+                    {Array.isArray(selectedReservation.extra_services?.baggage) && selectedReservation.extra_services.baggage.map((bag: string, idx: number) => (
                       <p key={idx} className="text-sm text-gray-700"><i className="ri-luggage-cart-line mr-2 text-red-600"></i>{bag}</p>
                     ))}
                     {selectedReservation.extra_services?.priorityBoarding && (
@@ -573,14 +573,14 @@ export default function AccountPage() {
                 </div>
               </div>
 
-              <div className="flex gap-3">
-                <button className="flex-1 py-3 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium whitespace-nowrap cursor-pointer flex items-center justify-center gap-2">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                <button className="flex-1 py-3 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium cursor-pointer flex items-center justify-center gap-2 text-sm">
                   <i className="ri-download-line"></i>PDF İndir
                 </button>
-                <button className="flex-1 py-3 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium whitespace-nowrap cursor-pointer flex items-center justify-center gap-2">
+                <button className="flex-1 py-3 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium cursor-pointer flex items-center justify-center gap-2 text-sm">
                   <i className="ri-mail-send-line"></i>E-posta Gönder
                 </button>
-                <Link to="/check-in" className="flex-1 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-medium whitespace-nowrap cursor-pointer flex items-center justify-center gap-2">
+                <Link to="/check-in" className="flex-1 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-medium cursor-pointer flex items-center justify-center gap-2 text-sm">
                   <i className="ri-checkbox-circle-line"></i>Check-in Yap
                 </Link>
               </div>
@@ -592,7 +592,7 @@ export default function AccountPage() {
       {/* Yolcu Ekleme Modal */}
       {showAddPassengerModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => { setShowAddPassengerModal(false); setEditingPassengerId(null); setNewPassenger({ name: '', surname: '', tcNo: '', birthDate: '', phone: '', email: '' }); }}>
-          <div className="bg-white rounded-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="p-3 sm:p-6 border-b border-gray-100">
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-bold text-gray-900">{editingPassengerId ? 'Yolcu Düzenle' : 'Yeni Yolcu Ekle'}</h3>

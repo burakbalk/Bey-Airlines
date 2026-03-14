@@ -9,7 +9,7 @@ export const savedPassengers = [
     surname: 'Yılmaz',
     tcNo: '12345678901',
     birthDate: '15.06.1985',
-    phone: '+90 532 123 4567',
+    phone: '444 7 239',
     email: 'ahmet.yilmaz@email.com'
   },
   {
@@ -18,7 +18,7 @@ export const savedPassengers = [
     surname: 'Yılmaz',
     birthDate: '22.08.1988',
     tcNo: '98765432109',
-    phone: '+90 532 765 4321',
+    phone: '444 7 239',
     email: 'ayse.yilmaz@email.com'
   }
 ];

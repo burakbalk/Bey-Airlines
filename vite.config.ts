@@ -68,8 +68,12 @@ export default defineConfig({
   ],
   base,
   build: {
-    sourcemap: true,
+    sourcemap: false,
     outDir: "out",
+    minify: "esbuild",
+    esbuild: {
+      drop: ["console"],
+    },
   },
   resolve: {
     alias: {

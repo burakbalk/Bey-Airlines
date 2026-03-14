@@ -64,12 +64,17 @@ export default function ReservationConfirmationPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (!pnr || !pnr.trim()) {
+      navigate('/', { replace: true });
+      return;
+    }
+
     const sessionData = sessionStorage.getItem('completedBooking');
     if (sessionData) {
       try {
         const data = JSON.parse(sessionData);
         // PNR eşleşmesini doğrula
-        if (!pnr || data.pnr === pnr) {
+        if (pnr && data.pnr === pnr) {
           setReservation(data);
           setShowSuccess(true);
           setTimeout(() => setShowSuccess(false), 3000);

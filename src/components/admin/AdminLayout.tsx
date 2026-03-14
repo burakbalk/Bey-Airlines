@@ -24,7 +24,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     navigate('/admin/login');
   };
 
-  const menuItems = [
+  const menuItems: { path: string; icon: string; label: string; badge?: string }[] = [
     { path: '/admin/dashboard', icon: 'dashboard-line', label: 'Dashboard' },
     { path: '/admin/ucuslar', icon: 'plane-line', label: 'Uçuşlar' },
     { path: '/admin/rezervasyonlar', icon: 'ticket-line', label: 'Rezervasyonlar' },

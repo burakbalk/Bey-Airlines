@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { logger } from '../utils/logger';
 
 export interface DestinationWeather {
   temp: string;
@@ -41,24 +42,28 @@ export function useDestinations() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     setError(null);
-    supabase
-      .from('destinations')
-      .select('*')
-      .order('city')
-      .then(({ data, error: fetchError }) => {
+    (async () => {
+      try {
+        const { data, error: fetchError } = await supabase
+          .from('destinations')
+          .select('*')
+          .order('city');
+        if (cancelled) return;
         if (fetchError) {
-          console.error('[useDestinations] Supabase hatası:', fetchError.message, fetchError.details);
+          logger.error('[useDestinations] Supabase hatası:', fetchError.message, fetchError.details);
           setError(fetchError.message);
         }
         if (data) setDestinations(data as Destination[]);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error('[useDestinations] Beklenmeyen hata:', err);
+      } catch (err) {
+        if (cancelled) return;
+        logger.error('[useDestinations] Beklenmeyen hata:', err);
         setError('Destinasyonlar yüklenirken bir hata oluştu');
-        setLoading(false);
-      });
+      }
+      if (!cancelled) setLoading(false);
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   return { destinations, loading, error };
@@ -71,25 +76,30 @@ export function useDestinationBySlug(slug: string | undefined) {
 
   useEffect(() => {
     if (!slug) { setLoading(false); return; }
+    let cancelled = false;
     setError(null);
-    supabase
-      .from('destinations')
-      .select('*')
-      .eq('slug', slug)
-      .single()
-      .then(({ data, error: fetchError }) => {
+    setLoading(true);
+    (async () => {
+      try {
+        const { data, error: fetchError } = await supabase
+          .from('destinations')
+          .select('*')
+          .eq('slug', slug)
+          .single();
+        if (cancelled) return;
         if (fetchError) {
-          console.error('[useDestinationBySlug] Supabase hatası:', fetchError.message);
+          logger.error('[useDestinationBySlug] Supabase hatası:', fetchError.message);
           setError(fetchError.message);
         }
         if (data) setDestination(data as Destination);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error('[useDestinationBySlug] Beklenmeyen hata:', err);
+      } catch (err) {
+        if (cancelled) return;
+        logger.error('[useDestinationBySlug] Beklenmeyen hata:', err);
         setError('Destinasyon yüklenirken bir hata oluştu');
-        setLoading(false);
-      });
+      }
+      if (!cancelled) setLoading(false);
+    })();
+    return () => { cancelled = true; };
   }, [slug]);
 
   return { destination, loading, error };

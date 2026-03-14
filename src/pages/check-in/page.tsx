@@ -106,10 +106,15 @@ export default function CheckInPage() {
     }
 
     // Check-in durumunu DB'ye kaydet
-    await supabase
+    const { error: checkInError } = await supabase
       .from('passengers')
       .update({ checked_in: true })
       .eq('id', matchingPassenger.id);
+
+    if (checkInError) {
+      setError('Check-in işlemi sırasında bir hata oluştu. Lütfen tekrar deneyin.');
+      return;
+    }
 
     setReservation(res);
     setCheckedInPassenger(matchingPassenger);
@@ -276,18 +281,18 @@ export default function CheckInPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between bg-gray-50 rounded-xl p-4">
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-gray-900">{fromCity.toUpperCase()}</p>
-                      <p className="text-sm text-gray-500 mt-1">{fromCode} · {depTime}</p>
+                  <div className="flex items-center justify-between bg-gray-50 rounded-xl p-4 gap-2">
+                    <div className="text-center min-w-0">
+                      <p className="text-lg sm:text-2xl font-bold text-gray-900 truncate">{fromCity.toUpperCase()}</p>
+                      <p className="text-xs sm:text-sm text-gray-500 mt-1">{fromCode} · {depTime}</p>
                     </div>
-                    <div className="flex flex-col items-center gap-1">
-                      <i className="ri-flight-takeoff-line text-2xl text-red-600"></i>
+                    <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                      <i className="ri-flight-takeoff-line text-xl sm:text-2xl text-red-600"></i>
                       <p className="text-xs text-gray-400">{flight?.duration || ''}</p>
                     </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-gray-900">{toCity.toUpperCase()}</p>
-                      <p className="text-sm text-gray-500 mt-1">{toCode} · {arrTime}</p>
+                    <div className="text-center min-w-0">
+                      <p className="text-lg sm:text-2xl font-bold text-gray-900 truncate">{toCity.toUpperCase()}</p>
+                      <p className="text-xs sm:text-sm text-gray-500 mt-1">{toCode} · {arrTime}</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mt-4">
@@ -324,7 +329,7 @@ export default function CheckInPage() {
 
               {/* Sağ: Biniş Kartı */}
               <div className="lg:col-span-1">
-                <div className="bg-white rounded-2xl shadow-md p-3 sm:p-6 sticky top-24 border border-gray-100">
+                <div className="bg-white rounded-2xl shadow-md p-3 sm:p-6 lg:sticky lg:top-24 border border-gray-100">
                   <h3 className="text-lg font-bold text-gray-900 mb-5 text-center">Dijital Biniş Kartı</h3>
                   <div className="bg-gradient-to-br from-red-600 to-red-800 rounded-2xl p-5 text-white">
                     <div className="text-center mb-4">

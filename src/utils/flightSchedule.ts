@@ -329,7 +329,7 @@ export function generateUserReservations() {
         { name: 'Ahmet', surname: 'Yılmaz', tcNo: '12345678901', birthDate: '15.06.1985', gender: 'Erkek', seat: '1A' },
         { name: 'Ayşe',  surname: 'Yılmaz', tcNo: '98765432109', birthDate: '22.08.1988', gender: 'Kadın', seat: '1B' },
       ],
-      contact: { email: 'ahmet.yilmaz@email.com', phone: '+90 532 123 4567' },
+      contact: { email: 'ahmet.yilmaz@email.com', phone: '444 7 239' },
       extraServices: { baggage: ['+20 kg'], meals: ['Standart Menü'], insurance: true, priorityBoarding: true },
     },
     {
@@ -350,7 +350,7 @@ export function generateUserReservations() {
       passengerDetails: [
         { name: 'Ahmet', surname: 'Yılmaz', tcNo: '12345678901', birthDate: '15.06.1985', gender: 'Erkek', seat: '12C' },
       ],
-      contact: { email: 'ahmet.yilmaz@email.com', phone: '+90 532 123 4567' },
+      contact: { email: 'ahmet.yilmaz@email.com', phone: '444 7 239' },
       extraServices: { baggage: [], meals: [], insurance: false, priorityBoarding: false },
     },
     {
@@ -371,7 +371,7 @@ export function generateUserReservations() {
       passengerDetails: [
         { name: 'Ahmet', surname: 'Yılmaz', tcNo: '12345678901', birthDate: '15.06.1985', gender: 'Erkek', seat: '8D' },
       ],
-      contact: { email: 'ahmet.yilmaz@email.com', phone: '+90 532 123 4567' },
+      contact: { email: 'ahmet.yilmaz@email.com', phone: '444 7 239' },
       extraServices: { baggage: ['+15 kg'], meals: ['Vejetaryen Menü'], insurance: true, priorityBoarding: false },
     },
     {
@@ -393,7 +393,7 @@ export function generateUserReservations() {
         { name: 'Ahmet', surname: 'Yılmaz', tcNo: '12345678901', birthDate: '15.06.1985', gender: 'Erkek', seat: '2A' },
         { name: 'Ayşe',  surname: 'Yılmaz', tcNo: '98765432109', birthDate: '22.08.1988', gender: 'Kadın', seat: '2B' },
       ],
-      contact: { email: 'ahmet.yilmaz@email.com', phone: '+90 532 123 4567' },
+      contact: { email: 'ahmet.yilmaz@email.com', phone: '444 7 239' },
       extraServices: { baggage: ['+30 kg'], meals: ['Standart Menü'], insurance: true, priorityBoarding: true },
     },
   ];

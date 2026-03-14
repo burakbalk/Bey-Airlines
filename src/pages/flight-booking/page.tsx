@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
@@ -76,27 +76,26 @@ const FlightBookingPage = () => {
     });
   }, [adultCount, childCount, infantCount]);
 
-  const updatePassenger = (id: string, field: keyof Passenger, value: string) => {
-    setPassengers(prev => prev.map(p => 
+  const updatePassenger = useCallback((id: string, field: keyof Passenger, value: string) => {
+    setPassengers(prev => prev.map(p =>
       p.id === id ? { ...p, [field]: value } : p
     ));
-  };
+  }, []);
 
-  const fillFromSaved = (passengerId: string, savedPassenger: typeof savedPassengers[0]) => {
-    setPassengers(prev => prev.map(p => 
+  const fillFromSaved = useCallback((passengerId: string, savedPassenger: typeof savedPassengers[0]) => {
+    setPassengers(prev => prev.map(p =>
       p.id === passengerId ? {
         ...p,
-        firstName: savedPassenger.firstName,
-        lastName: savedPassenger.lastName,
-        tcNo: savedPassenger.tcNo,
-        birthDate: savedPassenger.birthDate,
-        gender: savedPassenger.gender
+        firstName: savedPassenger.firstName || savedPassenger.first_name,
+        lastName: savedPassenger.lastName || savedPassenger.last_name,
+        tcNo: savedPassenger.tcNo || savedPassenger.tc_no,
+        birthDate: savedPassenger.birthDate || savedPassenger.birth_date,
       } : p
     ));
     setShowSavedPassengers(null);
-  };
+  }, [savedPassengers]);
 
-  const validateTcNo = (tc: string): boolean => {
+  const validateTcNo = useCallback((tc: string): boolean => {
     if (tc.length !== 11 || !/^\d+$/.test(tc)) return false;
     if (tc[0] === '0') return false;
     const d = tc.split('').map(Number);
@@ -105,9 +104,9 @@ const FlightBookingPage = () => {
     if ((7 * oddSum - evenSum) % 10 !== d[9]) return false;
     const totalSum = d.slice(0, 10).reduce((a, b) => a + b, 0);
     return totalSum % 10 === d[10];
-  };
+  }, []);
 
-  const validateAndContinue = () => {
+  const validateAndContinue = useCallback(() => {
     setFormError('');
     // Uçuş seçimi kontrolü
     if (!flightId) {
@@ -164,25 +163,28 @@ const FlightBookingPage = () => {
       passengers,
       contactInfo
     };
-    
+
     sessionStorage.setItem('bookingData', JSON.stringify(bookingData));
     navigate(`/koltuk-secimi?flightId=${flightId}`);
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flightId, flightNumber, flightTime, flightClass, duration,
+      from, to, date, price, passengers, contactInfo,
+      infantCount, adultCount, validateTcNo, navigate]);
 
-  const getPassengerTypeLabel = (type: string) => {
+  const getPassengerTypeLabel = useCallback((type: string) => {
     switch(type) {
       case 'adult': return 'Yetişkin';
       case 'child': return 'Çocuk (2-12 yaş)';
       case 'infant': return 'Bebek (0-2 yaş)';
       default: return '';
     }
-  };
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Header />
 
-      <main className="flex-1 pt-20">
+      <main className="flex-1 pt-4">
         <BookingStepper currentStep={1} />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -285,23 +287,23 @@ const FlightBookingPage = () => {
               {/* Yolcu Bilgileri */}
               {passengers.map((passenger, index) => (
                 <div key={passenger.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-lg font-bold text-gray-900">
+                  <div className="flex items-start sm:items-center justify-between mb-6 gap-2">
+                    <h3 className="text-base sm:text-lg font-bold text-gray-900">
                       {index + 1}. Yolcu - {getPassengerTypeLabel(passenger.type)}
                     </h3>
-                    
-                    <div className="relative">
+
+                    <div className="relative flex-shrink-0">
                       <button
                         type="button"
                         onClick={() => setShowSavedPassengers(showSavedPassengers === passenger.id ? null : passenger.id)}
-                        className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors whitespace-nowrap flex items-center space-x-2"
+                        className="px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs sm:text-sm font-medium text-gray-700 transition-colors whitespace-nowrap flex items-center space-x-2"
                       >
                         <i className="ri-user-line"></i>
                         <span>Kayıtlı Yolcu Seç</span>
                       </button>
-                      
+
                       {showSavedPassengers === passenger.id && (
-                        <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 z-10 max-h-80 overflow-y-auto">
+                        <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-2xl border border-gray-200 z-20 max-h-72 overflow-y-auto w-64 sm:w-72 max-w-[calc(100vw-2rem)]">
                           <div className="p-3 border-b border-gray-100">
                             <p className="text-sm font-semibold text-gray-900">Kayıtlı Yolcular</p>
                           </div>
@@ -312,8 +314,8 @@ const FlightBookingPage = () => {
                               onClick={() => fillFromSaved(passenger.id, saved)}
                               className="w-full px-4 py-3 hover:bg-gray-50 text-left transition-colors border-b border-gray-100 last:border-0"
                             >
-                              <div className="font-medium text-gray-900">{saved.firstName} {saved.lastName}</div>
-                              <div className="text-sm text-gray-500 mt-1">TC: {saved.tcNo}</div>
+                              <div className="font-medium text-gray-900 text-sm">{saved.firstName} {saved.lastName}</div>
+                              <div className="text-xs text-gray-500 mt-0.5">TC: {saved.tcNo}</div>
                             </button>
                           ))}
                         </div>
@@ -450,7 +452,7 @@ const FlightBookingPage = () => {
 
             {/* Sağ Taraf - Özet */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 sticky top-24">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 lg:sticky lg:top-24">
                 <div className="flex items-center gap-2 mb-6">
                   <i className="ri-flight-takeoff-line text-primary text-xl"></i>
                   <h3 className="text-lg font-bold text-gray-900">Uçuş Özeti</h3>

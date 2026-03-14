@@ -15,7 +15,7 @@ export default function HomePage() {
         <HeroSection />
         <PopularDestinations />
         {/* Divider between light sections */}
-        <div className="w-full max-w-7xl mx-auto px-8">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-8">
           <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
         </div>
         <CampaignsSection />

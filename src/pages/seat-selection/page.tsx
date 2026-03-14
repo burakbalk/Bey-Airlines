@@ -77,18 +77,10 @@ const SeatSelectionPage = () => {
   };
 
   const fetchOccupiedSeats = async (flightId: number): Promise<Set<string>> => {
-    const { data: reservations } = await supabase
-      .from('reservations')
-      .select('id')
-      .eq('flight_id', flightId);
-
-    if (!reservations || reservations.length === 0) return new Set();
-
-    const reservationIds = reservations.map(r => r.id);
     const { data: passengers } = await supabase
       .from('passengers')
-      .select('seat_number')
-      .in('reservation_id', reservationIds)
+      .select('seat_number, reservations!inner(flight_id)')
+      .eq('reservations.flight_id', flightId)
       .not('seat_number', 'is', null)
       .neq('seat_number', '-');
 
@@ -108,6 +100,15 @@ const SeatSelectionPage = () => {
 
     try {
       const parsed = JSON.parse(data);
+      if (
+        !parsed.flightId ||
+        !parsed.price ||
+        !Array.isArray(parsed.passengers) ||
+        parsed.passengers.length === 0
+      ) {
+        navigate('/ucus-ara');
+        return;
+      }
       setBookingData(parsed);
 
       const passengerSeatMap = parsed.passengers.map((p: BookingPassenger) => ({
@@ -229,7 +230,7 @@ const SeatSelectionPage = () => {
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Header />
       
-      <main className="flex-1 pt-20">
+      <main className="flex-1 pt-4">
         <BookingStepper currentStep={2} />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -304,26 +305,26 @@ const SeatSelectionPage = () => {
                   </div>
 
                   {/* Koltuklar */}
-                  <div className="space-y-3">
+                  <div className="space-y-1.5 sm:space-y-3">
                     {Array.from({ length: 30 }, (_, rowIdx) => {
                       const row = rowIdx + 1;
                       const rowSeats = seats.filter(s => s.row === row);
-                      
+
                       return (
-                        <div key={row} className="flex items-center justify-center gap-2">
+                        <div key={row} className="flex items-center justify-center gap-1 sm:gap-2">
                           {/* Sol taraf (A, B, C) */}
-                          <div className="flex gap-2">
+                          <div className="flex gap-1 sm:gap-2">
                             {['A', 'B', 'C'].map(col => {
                               const seat = rowSeats.find(s => s.column === col);
                               if (!seat) return null;
-                              
+
                               return (
                                 <button
                                   key={seat.id}
                                   type="button"
                                   onClick={() => handleSeatClick(seat)}
                                   disabled={seat.status === 'occupied'}
-                                  className={`w-10 h-10 rounded-lg font-semibold text-xs transition-all flex items-center justify-center ${
+                                  className={`w-10 h-10 sm:w-11 sm:h-11 rounded-md sm:rounded-lg font-semibold text-[10px] sm:text-xs transition-all flex items-center justify-center ${
                                     seat.status === 'occupied'
                                       ? 'bg-gray-400 text-white cursor-not-allowed'
                                       : seat.status === 'selected'
@@ -343,23 +344,23 @@ const SeatSelectionPage = () => {
                           </div>
 
                           {/* Sıra numarası */}
-                          <div className="w-8 text-center font-bold text-gray-500 text-sm">
+                          <div className="w-6 sm:w-8 text-center font-bold text-gray-500 text-xs sm:text-sm">
                             {row}
                           </div>
 
                           {/* Sağ taraf (D, E, F) */}
-                          <div className="flex gap-2">
+                          <div className="flex gap-1 sm:gap-2">
                             {['D', 'E', 'F'].map(col => {
                               const seat = rowSeats.find(s => s.column === col);
                               if (!seat) return null;
-                              
+
                               return (
                                 <button
                                   key={seat.id}
                                   type="button"
                                   onClick={() => handleSeatClick(seat)}
                                   disabled={seat.status === 'occupied'}
-                                  className={`w-10 h-10 rounded-lg font-semibold text-xs transition-all flex items-center justify-center ${
+                                  className={`w-10 h-10 sm:w-11 sm:h-11 rounded-md sm:rounded-lg font-semibold text-[10px] sm:text-xs transition-all flex items-center justify-center ${
                                     seat.status === 'occupied'
                                       ? 'bg-gray-400 text-white cursor-not-allowed'
                                       : seat.status === 'selected'

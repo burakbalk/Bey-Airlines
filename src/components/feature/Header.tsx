@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -18,15 +18,25 @@ export default function Header() {
   const isLoggedIn = !!user;
   const displayName = profile?.first_name || '';
 
+  // Mobil menü açıkken arka plan scroll'unu kilitle
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileOpen]);
+
   return (
     <>
       {/* Top Info Bar */}
       <div className="hidden md:block bg-gray-950 text-gray-400 text-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-9">
           <div className="flex items-center gap-5">
-            <a href="tel:+908501234567" className="flex items-center gap-1.5 hover:text-white transition-colors">
+            <a href="tel:4447239" className="flex items-center gap-1.5 hover:text-white transition-colors">
               <i className="ri-phone-fill text-primary text-xs"></i>
-              0850 123 45 67
+              444 7 239
             </a>
             <span className="text-gray-700">|</span>
             <span className="flex items-center gap-1.5">
@@ -66,7 +76,7 @@ export default function Header() {
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2 cursor-pointer flex-shrink-0" onClick={() => setMobileOpen(false)}>
               <img src="/logo.png" alt="Bey Airlines" className="h-11 w-11 object-contain" />
-              <span className="text-xl font-semibold uppercase tracking-[0.15em] text-gray-900 font-cinzel">
+              <span className="text-[1.4rem] font-playfair font-bold italic uppercase tracking-[0.12em] text-gray-900 leading-none">
                 Bey <span className="text-primary">Airlines</span>
               </span>
             </Link>
@@ -138,24 +148,24 @@ export default function Header() {
       </header>
 
       {/* Mobile Drawer */}
-      {mobileOpen && (
-        <>
+      <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+            className={`fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity duration-300 ${mobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
             onClick={() => setMobileOpen(false)}
             aria-hidden="true"
           />
           {/* Side Drawer */}
           <nav
-            className="fixed top-0 left-0 bottom-0 w-72 bg-white z-50 lg:hidden shadow-2xl flex flex-col"
+            className={`fixed top-0 left-0 bottom-0 w-72 bg-white z-50 lg:hidden shadow-2xl flex flex-col transition-transform duration-300 ease-in-out ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
             aria-label="Mobil navigasyon"
+            aria-hidden={!mobileOpen}
           >
             {/* Drawer Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gray-50">
               <Link to="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-2">
                 <img src="/logo.png" alt="Bey Airlines" className="h-9 w-9 object-contain" />
-                <span className="font-semibold text-gray-900 text-base uppercase tracking-[0.15em] font-cinzel">
+                <span className="text-[1.3rem] font-playfair font-bold italic uppercase tracking-[0.12em] text-gray-900 leading-none">
                   Bey <span className="text-primary">Airlines</span>
                 </span>
               </Link>
@@ -195,9 +205,9 @@ export default function Header() {
               {/* Contact Info */}
               <div className="mt-4 mx-1 p-4 bg-gray-50 rounded-xl">
                 <p className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wide">İletişim</p>
-                <a href="tel:+908501234567" className="flex items-center gap-2 text-sm text-gray-700 hover:text-primary transition-colors py-1">
+                <a href="tel:4447239" className="flex items-center gap-2 text-sm text-gray-700 hover:text-primary transition-colors py-1">
                   <i className="ri-phone-line text-primary"></i>
-                  0850 123 45 67
+                  444 7 239
                 </a>
                 <p className="text-xs text-gray-400 mt-1">7/24 Çağrı Merkezi</p>
               </div>
@@ -236,8 +246,7 @@ export default function Header() {
               )}
             </div>
           </nav>
-        </>
-      )}
+      </>
     </>
   );
 }

@@ -6,6 +6,7 @@ import BookingStepper from '../../components/feature/BookingStepper';
 import { useCreateReservation } from '../../hooks/useReservations';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { supabase } from '../../lib/supabase';
+import { logger } from '../../utils/logger';
 
 interface Passenger {
   firstName: string;
@@ -73,12 +74,22 @@ const PaymentPage = () => {
     const data = sessionStorage.getItem('bookingData');
     if (data) {
       try {
-        setBookingData(JSON.parse(data));
+        const parsed = JSON.parse(data);
+        if (
+          !parsed.flightId ||
+          !parsed.price ||
+          !Array.isArray(parsed.passengers) ||
+          parsed.passengers.length === 0
+        ) {
+          navigate('/ucus-ara');
+          return;
+        }
+        setBookingData(parsed);
       } catch {
-        navigate('/');
+        navigate('/ucus-ara');
       }
     } else {
-      navigate('/');
+      navigate('/ucus-ara');
     }
 
   }, [navigate]);
@@ -265,7 +276,7 @@ const PaymentPage = () => {
         extras: reservationData.extras,
         payment: { total: reservationData.payment.total },
       },
-    }).catch((err) => console.error('[PaymentPage] Onay e-postası gönderilemedi:', err));
+    }).catch((err) => logger.error('[PaymentPage] Onay e-postası gönderilemedi:', err));
 
     navigate(`/rezervasyon-onay/${pnr}`);
   };
@@ -286,7 +297,7 @@ const PaymentPage = () => {
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Header />
       
-      <main className="flex-1 pt-20">
+      <main className="flex-1 pt-4">
         <BookingStepper currentStep={4} />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -408,7 +419,7 @@ const PaymentPage = () => {
                   {installmentOptions.map(option => (
                     <label
                       key={option.value}
-                      className={`flex items-center justify-between p-4 border-2 rounded-lg cursor-pointer transition-all ${installment === option.value ? 'border-red-600 bg-red-50' : 'border-gray-200 hover:border-gray-300'}`}
+                      className={`flex items-center justify-between gap-2 p-3 sm:p-4 border-2 rounded-lg cursor-pointer transition-all ${installment === option.value ? 'border-red-600 bg-red-50' : 'border-gray-200 hover:border-gray-300'}`}
                     >
                       <div className="flex items-center space-x-3">
                         <input
@@ -459,9 +470,9 @@ const PaymentPage = () => {
                   </div>
                   <div className="flex flex-col items-center gap-1">
                     <div className="w-9 h-9 bg-purple-100 rounded-xl flex items-center justify-center">
-                      <i className="ri-bank-card-fill text-purple-600 text-lg"></i>
+                      <i className="ri-secure-payment-line text-purple-600 text-lg"></i>
                     </div>
-                    <span className="text-xs text-gray-500 whitespace-nowrap">PCI DSS</span>
+                    <span className="text-xs text-gray-500 whitespace-nowrap">Güvenli Bağlantı</span>
                   </div>
                   <div className="flex flex-col items-center gap-1">
                     <div className="w-9 h-9 bg-orange-100 rounded-xl flex items-center justify-center">

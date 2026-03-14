@@ -50,17 +50,17 @@ export default function CampaignDetailPage() {
         {/* Hero Section */}
         <div className="relative h-96 w-full overflow-hidden">
           {campaign.image ? (
-            <img src={campaign.image} alt={campaign.title} className="w-full h-full object-cover object-top" />
+            <img src={campaign.image} alt={campaign.title} className="w-full h-full object-cover object-top" loading="eager" />
           ) : (
             <div className="bg-gradient-to-r from-red-500 to-red-700 w-full h-full" />
           )}
           <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/60"></div>
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center px-8 max-w-4xl">
+            <div className="text-center px-4 sm:px-8 max-w-4xl">
               <div className={`inline-block px-4 py-2 rounded-full text-sm font-bold text-white mb-4 ${campaign.type === 'vip' ? 'bg-amber-500' : 'bg-red-600'}`}>
                 {campaign.badge}
               </div>
-              <h1 className="text-5xl font-bold text-white mb-4">
+              <h1 className="text-3xl sm:text-5xl font-bold text-white mb-4">
                 {campaign.type === 'vip' && <i className="ri-vip-crown-fill text-amber-400 mr-3"></i>}
                 {campaign.title}
               </h1>
@@ -69,7 +69,7 @@ export default function CampaignDetailPage() {
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-8 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-8">

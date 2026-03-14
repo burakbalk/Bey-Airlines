@@ -4,7 +4,7 @@ import { useAdminStats } from '../../../hooks/useAdminStats';
 
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
-  const { stats, recentReservations, loading } = useAdminStats();
+  const { stats, recentReservations, loading, error } = useAdminStats();
 
   const getStatusBadge = (status: string) => {
     const badges = {
@@ -31,6 +31,12 @@ export default function AdminDashboardPage() {
   return (
     <AdminLayout>
         <div className="space-y-6">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl flex items-center gap-3">
+              <i className="ri-error-warning-line text-lg text-red-600 flex-shrink-0"></i>
+              <span className="text-sm font-medium">İstatistikler yüklenirken hata oluştu: {error}</span>
+            </div>
+          )}
           {/* Welcome Card */}
           <div className="bg-gradient-to-r from-red-600 to-red-700 rounded-2xl p-8 text-white">
             <div className="flex items-center justify-between">

@@ -52,6 +52,7 @@ export default function DestinationDetailPage() {
             src={destination.hero_image}
             alt={destination.city}
             className="w-full h-full object-cover object-top"
+            loading="eager"
           />
         </div>
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/50"></div>
@@ -139,6 +140,7 @@ export default function DestinationDetailPage() {
                     src={image}
                     alt={`${destination.city} ${index + 1}`}
                     className="w-full h-full object-cover object-top"
+                    loading="lazy"
                   />
                 </div>
               </div>
@@ -220,6 +222,7 @@ export default function DestinationDetailPage() {
                     src={dest.image}
                     alt={dest.city}
                     className="w-full h-full object-cover object-top"
+                    loading="lazy"
                   />
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>

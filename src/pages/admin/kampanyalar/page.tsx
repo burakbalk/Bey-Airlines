@@ -8,7 +8,7 @@ export default function AdminCampaignsPage() {
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('Tümü');
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [formErrors, setFormErrors] = useState<{ title?: string; description?: string }>({});
 
@@ -86,12 +86,12 @@ export default function AdminCampaignsPage() {
     setShowModal(false);
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     await remove(id);
     setShowDeleteConfirm(null);
   };
 
-  const toggleActive = async (id: number, currentState: boolean) => {
+  const toggleActive = async (id: string, currentState: boolean) => {
     await update(id, { is_active: !currentState });
   };
 

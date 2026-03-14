@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo, type ReactNode } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 export const CITIES = [
@@ -42,19 +42,41 @@ export function PortalDropdown({
   align?: 'left' | 'center' | 'right';
 }) {
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, visible: false });
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    if (!open || !triggerRef.current) return;
+    const mql = window.matchMedia('(max-width: 768px)');
+    setIsMobile(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
+  const calcPos = useCallback(() => {
+    if (isMobile || !triggerRef.current || !dropdownRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
+    const maxW = window.innerWidth - 16;
+    const w = Math.min(width || rect.width, maxW);
     let left = rect.left;
-    if (align === 'center') left = rect.left + rect.width / 2 - (width || rect.width) / 2;
-    if (align === 'right') left = rect.right - (width || rect.width);
-    const w = width || rect.width;
+    if (align === 'center') left = rect.left + rect.width / 2 - w / 2;
+    if (align === 'right') left = rect.right - w;
     if (left + w > window.innerWidth - 8) left = window.innerWidth - w - 8;
     if (left < 8) left = 8;
-    setPos({ top: rect.bottom + 8, left });
-  }, [open, triggerRef, width, align]);
+    const dropdownHeight = dropdownRef.current.offsetHeight;
+    const spaceBelow = window.innerHeight - rect.bottom - 8;
+    const openUp = spaceBelow < dropdownHeight && rect.top > dropdownHeight + 8;
+    const top = openUp ? rect.top - dropdownHeight - 8 : rect.bottom + 8;
+    setPos({ top, left, width: w, visible: true });
+  }, [triggerRef, width, align, isMobile]);
+
+  useLayoutEffect(() => {
+    if (!open) { setPos(p => ({ ...p, visible: false, width: 0 })); return; }
+    if (isMobile) { setPos(p => ({ ...p, visible: true })); return; }
+    setPos(p => ({ ...p, visible: false }));
+    const id = requestAnimationFrame(calcPos);
+    return () => cancelAnimationFrame(id);
+  }, [open, calcPos, isMobile]);
 
   useEffect(() => {
     if (!open) return;
@@ -67,24 +89,49 @@ export function PortalDropdown({
       }
     };
     document.addEventListener('mousedown', handler);
-    window.addEventListener('scroll', onClose, true);
+    if (!isMobile) {
+      window.addEventListener('scroll', onClose, true);
+    }
     return () => {
       document.removeEventListener('mousedown', handler);
-      window.removeEventListener('scroll', onClose, true);
+      if (!isMobile) {
+        window.removeEventListener('scroll', onClose, true);
+      }
     };
-  }, [open, onClose, triggerRef]);
+  }, [open, onClose, triggerRef, isMobile]);
 
   if (!open) return null;
+
+  // Mobilde bottom sheet olarak göster
+  if (isMobile) {
+    return createPortal(
+      <>
+        <div className="fixed inset-0 bg-black/50 z-[9998]" onClick={onClose} />
+        <div
+          ref={dropdownRef}
+          className="fixed bottom-0 left-0 right-0 z-[9999] rounded-t-2xl shadow-2xl bg-gray-900/98 max-h-[60vh] overflow-y-auto animate-fade-up"
+        >
+          <div className="flex justify-center pt-3 pb-1">
+            <div className="w-10 h-1 bg-white/20 rounded-full" />
+          </div>
+          {children}
+        </div>
+      </>,
+      document.body
+    );
+  }
 
   return createPortal(
     <div
       ref={dropdownRef}
-      className="fixed rounded-xl shadow-2xl shadow-black/50 border border-white/[0.15] bg-gray-900/95 backdrop-blur-2xl"
+      className="fixed rounded-xl shadow-2xl shadow-black/50 border border-white/[0.15] bg-gray-900/98 backdrop-blur-sm"
       style={{
         top: pos.top,
         left: pos.left,
-        width: width || triggerRef.current?.getBoundingClientRect().width,
+        width: pos.width || triggerRef.current?.getBoundingClientRect().width,
         zIndex: 9999,
+        opacity: pos.visible ? 1 : 0,
+        pointerEvents: pos.visible ? 'auto' : 'none',
       }}
     >
       {children}
@@ -479,12 +526,17 @@ export function useSearchForm(initialData?: Partial<SearchFormData>) {
   }, []);
 
   // "from" değişince "to"yu otomatik düzelt (iç hat olmasın)
+  // prevFromRef ile sadece gerçek "from" değişiminde tetiklenir; circular re-render önlenir
+  const prevFromRef = useRef(formData.from);
   useEffect(() => {
+    if (prevFromRef.current === formData.from) return;
+    prevFromRef.current = formData.from;
     const available = getAvailableDestinations(formData.from);
-    if (!available.find(c => c.name === formData.to)) {
-      setFormData((prev) => ({ ...prev, to: available[0]?.name || 'Dubai', departDate: '', returnDate: '' }));
-    }
-  }, [formData.from, formData.to]);
+    setFormData((prev) => {
+      if (available.find(c => c.name === prev.to)) return prev;
+      return { ...prev, to: available[0]?.name || 'Dubai', departDate: '', returnDate: '' };
+    });
+  }, [formData.from]);
 
   // Rota değişince tarihleri sıfırla ve en yakın uçuşu seç
   useEffect(() => {

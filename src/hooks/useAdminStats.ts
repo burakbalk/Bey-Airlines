@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { logger } from '../utils/logger';
 
 interface DashboardStats {
   totalFlights: number;
@@ -36,8 +37,11 @@ export function useAdminStats() {
   const [recentReservations, setRecentReservations] = useState<RecentReservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
+
     const fetchStats = async () => {
       setError(null);
       try {
@@ -46,24 +50,26 @@ export function useAdminStats() {
         const results = await Promise.all([
           supabase.from('flights').select('*', { count: 'exact', head: true }).gte('flight_date', today),
           supabase.from('reservations').select('*', { count: 'exact', head: true }),
-          supabase.from('reservations').select('total_price'),
+          supabase.rpc('get_total_revenue'),
           supabase.from('passengers').select('*', { count: 'exact', head: true }),
           supabase.from('flights').select('*', { count: 'exact', head: true }).eq('flight_date', today),
           supabase.from('campaigns').select('*', { count: 'exact', head: true }).eq('is_active', true),
-          supabase.from('reservations').select('*').order('created_at', { ascending: false }).limit(10),
+          supabase.from('reservations').select('id, pnr, route, flight_date, status, total_price, flight_class, created_at, contact_email').order('created_at', { ascending: false }).limit(10),
           supabase.from('reservations').select('*', { count: 'exact', head: true }).in('status', ['cancelled', 'İptal']),
         ]);
 
+        if (!mountedRef.current) return;
+
         const errors = results.filter(r => r.error).map(r => r.error!.message);
         if (errors.length > 0) {
-          console.error('[useAdminStats] Supabase hataları:', errors);
+          logger.error('[useAdminStats] Supabase hataları:', errors);
           setError(errors[0]);
         }
 
         const [
           { count: totalFlights },
           { count: totalReservations },
-          { data: revenueData },
+          { data: revenueResult },
           { count: totalPassengers },
           { count: todayFlights },
           { count: activeCampaigns },
@@ -71,7 +77,7 @@ export function useAdminStats() {
           { count: cancelledReservations },
         ] = results;
 
-        const totalRevenue = revenueData?.reduce((sum, r) => sum + Number(r.total_price || 0), 0) || 0;
+        const totalRevenue = Number(revenueResult) || 0;
 
         setStats({
           totalFlights: totalFlights || 0,
@@ -85,13 +91,15 @@ export function useAdminStats() {
 
         if (recent) setRecentReservations(recent as RecentReservation[]);
       } catch (err) {
-        console.error('[useAdminStats] Beklenmeyen hata:', err);
+        if (!mountedRef.current) return;
+        logger.error('[useAdminStats] Beklenmeyen hata:', err);
         setError('İstatistikler yüklenirken bir hata oluştu');
       }
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     };
 
     fetchStats();
+    return () => { mountedRef.current = false; };
   }, []);
 
   return { stats, recentReservations, loading, error };

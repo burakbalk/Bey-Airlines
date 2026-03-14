@@ -1,17 +1,27 @@
-import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useState } from 'react';
 import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
+import { usePageTitle } from '../../hooks/usePageTitle';
 
 type TabType = 'kvkk' | 'cerez' | 'yolcu-haklari';
 
+function getActiveTab(pathname: string): TabType {
+  if (pathname.includes('cerez-politikasi')) return 'cerez';
+  if (pathname.includes('yolcu-haklari')) return 'yolcu-haklari';
+  return 'kvkk';
+}
+
+const PAGE_TITLES: Record<TabType, string> = {
+  'kvkk': 'KVKK / Gizlilik Politikası',
+  'cerez': 'Çerez Politikası',
+  'yolcu-haklari': 'Yolcu Hakları',
+};
+
 export default function KVKKPage() {
   const location = useLocation();
-  const [activeTab, setActiveTab] = useState<TabType>(() => {
-    if (location.pathname.includes('cerez-politikasi')) return 'cerez';
-    if (location.pathname.includes('yolcu-haklari')) return 'yolcu-haklari';
-    return 'kvkk';
-  });
+  const activeTab = getActiveTab(location.pathname);
+  usePageTitle(PAGE_TITLES[activeTab]);
 
   const tabs = [
     { id: 'kvkk' as TabType, label: 'KVKK', path: '/kvkk' },
@@ -22,17 +32,17 @@ export default function KVKKPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header />
-      
+
       {/* Hero Section */}
       <section className="relative bg-gradient-to-br from-red-600 via-red-500 to-red-700 text-white pt-32 pb-20">
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/20"></div>
-        <div className="max-w-7xl mx-auto px-8 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 relative z-10">
           <div className="flex items-center justify-center mb-6">
             <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
               <i className="ri-file-text-line text-5xl"></i>
             </div>
           </div>
-          <h1 className="text-5xl font-bold text-center mb-6">Yasal Bilgiler</h1>
+          <h1 className="text-3xl sm:text-5xl font-bold text-center mb-6">Yasal Bilgiler</h1>
           <p className="text-xl text-center text-white/90 max-w-3xl mx-auto">
             Kişisel verilerinizin korunması, çerez kullanımı ve yolcu haklarınız hakkında detaylı bilgiler
           </p>
@@ -40,14 +50,13 @@ export default function KVKKPage() {
       </section>
 
       {/* Tab Navigation */}
-      <div className="bg-bg-alt border-b border-gray-200 sticky top-16 z-40">
-        <div className="max-w-7xl mx-auto px-8">
+      <div className="bg-bg-alt border-b border-gray-200 sticky top-[4.5rem] z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <div className="flex gap-2">
             {tabs.map((tab) => (
               <Link
                 key={tab.id}
                 to={tab.path}
-                onClick={() => setActiveTab(tab.id)}
                 className={`px-6 py-4 font-semibold text-sm transition-all duration-200 border-b-2 whitespace-nowrap cursor-pointer ${
                   activeTab === tab.id
                     ? 'text-primary border-primary'
@@ -63,7 +72,7 @@ export default function KVKKPage() {
 
       {/* Content */}
       <div className="flex-1 py-16">
-        <div className="max-w-5xl mx-auto px-8">
+        <div className="max-w-5xl mx-auto px-4 sm:px-8">
           {activeTab === 'kvkk' && <KVKKContent />}
           {activeTab === 'cerez' && <CerezContent />}
           {activeTab === 'yolcu-haklari' && <YolcuHaklariContent />}
@@ -86,7 +95,7 @@ function KVKKContent() {
 **İletişim Bilgilerimiz:**
 • Adres: Atatürk Havalimanı, Terminal 1, 34149 Yeşilköy/İstanbul
 • E-posta: kvkk@beyair.com
-• Telefon: +90 212 444 0 BEY (239)`
+• Telefon: 444 7 239`
     },
     {
       title: 'Toplanan Kişisel Veriler',
@@ -171,7 +180,7 @@ function KVKKContent() {
           </div>
           <div className="flex items-center gap-3">
             <i className="ri-phone-line text-primary"></i>
-            <span>+90 212 444 0 239</span>
+            <span>444 7 239</span>
           </div>
         </div>
       </div>
@@ -458,7 +467,7 @@ function YolcuHaklariContent() {
         </p>
         <div className="flex flex-wrap gap-4">
           <a
-            href="tel:+902124440239"
+            href="tel:4447239"
             className="bg-white text-primary px-6 py-3 rounded-full font-semibold hover:bg-gray-100 transition-colors whitespace-nowrap cursor-pointer inline-flex items-center gap-2"
           >
             <i className="ri-phone-line"></i>

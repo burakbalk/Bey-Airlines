@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { logger } from '../utils/logger';
 
 /**
  * App başlatıldığında gelecek uçuş sayısını kontrol eder.
@@ -17,13 +18,18 @@ export function useFlightInit() {
       try {
         const today = new Date().toISOString().split('T')[0];
 
+        // sessionStorage flag: aynı gün içinde tekrar Supabase sorgusu yapma
+        const flagKey = `flightInitDone_${today}`;
+        if (sessionStorage.getItem(flagKey)) return;
+        sessionStorage.setItem(flagKey, '1');
+
         const { count, error } = await supabase
           .from('flights')
           .select('id', { count: 'exact', head: true })
           .gte('flight_date', today);
 
         if (error) {
-          console.error('Flight count sorgu hatası:', error.message);
+          logger.error('Flight count sorgu hatası:', error.message);
           return;
         }
 
@@ -34,11 +40,11 @@ export function useFlightInit() {
             num_weeks: 4,
           });
           if (rpcError) {
-            console.error('generate_weekly_flights hatası:', rpcError.message);
+            logger.error('generate_weekly_flights hatası:', rpcError.message);
           }
         }
       } catch (err) {
-        console.error('Flight init hatası:', err);
+        logger.error('Flight init hatası:', err);
       }
     })();
   }, []);

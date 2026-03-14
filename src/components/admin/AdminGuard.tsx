@@ -11,10 +11,10 @@ export default function AdminGuard({ children }: AdminGuardProps) {
   const location = useLocation();
   const [timedOut, setTimedOut] = useState(false);
 
-  // 5 saniye sonra loading'de kalmışsa login'e yönlendir
+  // 10 saniye sonra loading'de kalmışsa login'e yönlendir
   useEffect(() => {
     if (!loading) return;
-    const timer = setTimeout(() => setTimedOut(true), 5000);
+    const timer = setTimeout(() => setTimedOut(true), 10000);
     return () => clearTimeout(timer);
   }, [loading]);
 

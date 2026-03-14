@@ -38,13 +38,13 @@ export default function CampaignsPage() {
         {/* Hero Section */}
         <div className="relative bg-gradient-to-br from-red-600 via-red-500 to-red-700 pt-16 pb-16">
           <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/20"></div>
-          <div className="relative z-10 max-w-7xl mx-auto px-8 text-center">
+          <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-8 text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-full mb-6">
               <i className="ri-plane-line text-3xl text-white"></i>
             </div>
-            <h1 className="text-5xl font-bold text-white mb-4">Hizmetlerimiz</h1>
+            <h1 className="text-3xl sm:text-5xl font-bold text-white mb-4">Hizmetlerimiz</h1>
             <p className="text-xl text-red-100">Rotalarımız ve hizmetlerimiz hakkında bilgi alın</p>
-            <div className="flex items-center justify-center gap-8 mt-8">
+            <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 mt-8">
               {['Yurt İçi Seferler', 'VIP Hizmetler', 'Esnek Seçenekler'].map((item, i) => (
                 <div key={i} className="flex items-center gap-2 text-white/90 text-sm">
                   <i className="ri-check-line text-red-200"></i>
@@ -56,13 +56,13 @@ export default function CampaignsPage() {
         </div>
 
         {/* Filter Section */}
-        <div className="max-w-7xl mx-auto px-8 -mt-6 relative z-10">
-          <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 px-8 py-5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 -mt-6 relative z-10">
+          <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 px-4 sm:px-8 py-5">
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <button
                   onClick={() => setFilter('all')}
-                  className={`px-6 py-2 rounded-full font-medium transition-all whitespace-nowrap cursor-pointer text-sm ${
+                  className={`px-4 sm:px-6 py-2 rounded-full font-medium transition-all whitespace-nowrap cursor-pointer text-sm ${
                     filter === 'all' ? 'bg-red-600 text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-red-50 hover:text-red-600'
                   }`}
                 >
@@ -70,7 +70,7 @@ export default function CampaignsPage() {
                 </button>
                 <button
                   onClick={() => setFilter('vip')}
-                  className={`px-6 py-2 rounded-full font-medium transition-all whitespace-nowrap cursor-pointer text-sm ${
+                  className={`px-4 sm:px-6 py-2 rounded-full font-medium transition-all whitespace-nowrap cursor-pointer text-sm ${
                     filter === 'vip' ? 'bg-amber-500 text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-amber-50 hover:text-amber-600'
                   }`}
                 >
@@ -78,7 +78,7 @@ export default function CampaignsPage() {
                 </button>
                 <button
                   onClick={() => setFilter('normal')}
-                  className={`px-6 py-2 rounded-full font-medium transition-all whitespace-nowrap cursor-pointer text-sm ${
+                  className={`px-4 sm:px-6 py-2 rounded-full font-medium transition-all whitespace-nowrap cursor-pointer text-sm ${
                     filter === 'normal' ? 'bg-red-600 text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-red-50 hover:text-red-600'
                   }`}
                 >
@@ -93,7 +93,7 @@ export default function CampaignsPage() {
         </div>
 
         {/* Campaigns Grid */}
-        <div className="max-w-7xl mx-auto px-8 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12">
           {filteredCampaigns.length === 0 ? (
             <div className="text-center py-16">
               <div className="w-16 h-16 flex items-center justify-center mx-auto mb-4 bg-red-50 rounded-full">

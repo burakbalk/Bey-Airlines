@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
+import { logger } from '../utils/logger';
 import type { User, Session } from '@supabase/supabase-js';
 
 interface Profile {
@@ -51,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (rpcError) {
-        console.error('[AuthContext] check_admin_role RPC hatası:', rpcError.message);
+        logger.error('[AuthContext] check_admin_role RPC hatası:', rpcError.message);
         return null;
       }
 
@@ -67,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(minimalProfile);
       return minimalProfile;
     } catch (err) {
-      console.error('[AuthContext] fetchProfile exception:', err);
+      logger.error('[AuthContext] fetchProfile exception:', err);
       return null;
     }
   };
@@ -95,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return { error: error.message, profile: null };
+    if (error) return { error: 'E-posta veya şifre hatalı.', profile: null };
     // Profile'i hemen fetch et — onAuthStateChange'i beklemeye gerek yok
     let fetchedProfile: Profile | null = null;
     if (data.user) {

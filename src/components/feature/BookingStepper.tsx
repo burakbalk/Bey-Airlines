@@ -45,11 +45,11 @@ export default function BookingStepper({ currentStep }: BookingStepperProps) {
                       <i className={`${step.icon} text-base`}></i>
                     )}
                   </div>
-                  <div className="hidden sm:block">
-                    <p className={`text-sm font-semibold leading-tight ${isActive ? 'text-primary' : isDone ? 'text-green-600' : 'text-gray-400'}`}>
+                  <div className={`${isActive ? 'block' : 'hidden sm:block'}`}>
+                    <p className={`text-xs sm:text-sm font-semibold leading-tight ${isActive ? 'text-primary' : isDone ? 'text-green-600' : 'text-gray-400'}`}>
                       {step.label}
                     </p>
-                    <p className={`text-xs mt-0.5 ${isActive ? 'text-gray-500' : 'text-gray-400'}`}>
+                    <p className={`text-xs mt-0.5 hidden sm:block ${isActive ? 'text-gray-500' : 'text-gray-400'}`}>
                       {isDone ? 'Tamamlandı' : step.sublabel}
                     </p>
                   </div>

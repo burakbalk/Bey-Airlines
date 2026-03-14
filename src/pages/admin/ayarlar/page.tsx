@@ -1,65 +1,18 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../../../components/admin/AdminLayout';
 import { supabase } from '../../../lib/supabase';
-
-const SETTINGS_KEY = 'admin_settings';
-
-const defaultGeneralSettings = {
-  siteName: 'BeyAir Havayolları',
-  contactEmail: 'info@beyair.com',
-  contactPhone: '+90 850 123 4567',
-  supportEmail: 'destek@beyair.com',
-  address: 'Atatürk Havalimanı, Terminal 1, İstanbul'
-};
-
-const defaultNotifications = {
-  emailNewReservation: true,
-  emailCancellation: true,
-  emailNewMessage: true,
-  emailLowStock: false,
-  smsNewReservation: false,
-  smsCancellation: true
-};
-
-const defaultFlightMessages = {
-  onTime: 'Uçuşunuz zamanında kalkacaktır.',
-  delayed: 'Uçuşunuz gecikmiştir. Lütfen bilgi ekranlarını takip edin.',
-  cancelled: 'Uçuşunuz iptal edilmiştir. Lütfen gişelerimize başvurun.',
-  boarding: 'Uçuşunuz için biniş başlamıştır. Lütfen kapıya geçin.',
-  departed: 'Uçuşunuz kalkış yapmıştır.'
-};
-
-function loadFromStorage<T>(key: string, defaults: T): T {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed[key]) return { ...defaults, ...parsed[key] };
-    }
-  } catch {}
-  return defaults;
-}
-
-function saveToStorage(key: string, value: unknown) {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    const current = raw ? JSON.parse(raw) : {};
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...current, [key]: value }));
-  } catch {}
-}
+import { useAdminSettings } from '../../../hooks/useAdminSettings';
 
 export default function AdminSettingsPage() {
   const [activeTab, setActiveTab] = useState<'general' | 'password' | 'notifications' | 'messages'>('general');
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Genel Ayarlar
-  const [generalSettings, setGeneralSettings] = useState(() =>
-    loadFromStorage('general', defaultGeneralSettings)
-  );
+  const { settings, loading, saveSettings } = useAdminSettings();
+
+  const [generalSettings, setGeneralSettings] = useState(settings.general);
   const [savingGeneral, setSavingGeneral] = useState(false);
 
-  // Şifre Değiştirme
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -67,17 +20,20 @@ export default function AdminSettingsPage() {
   });
   const [savingPassword, setSavingPassword] = useState(false);
 
-  // Bildirim Tercihleri
-  const [notifications, setNotifications] = useState(() =>
-    loadFromStorage('notifications', defaultNotifications)
-  );
+  const [notifications, setNotifications] = useState(settings.notifications);
   const [savingNotifications, setSavingNotifications] = useState(false);
 
-  // Uçuş Durumu Mesajları
-  const [flightMessages, setFlightMessages] = useState(() =>
-    loadFromStorage('flightMessages', defaultFlightMessages)
-  );
+  const [flightMessages, setFlightMessages] = useState(settings.flightMessages);
   const [savingMessages, setSavingMessages] = useState(false);
+
+  // Supabase'den ayarlar yüklenince local state'leri güncelle
+  useEffect(() => {
+    if (!loading) {
+      setGeneralSettings(settings.general);
+      setNotifications(settings.notifications);
+      setFlightMessages(settings.flightMessages);
+    }
+  }, [loading, settings]);
 
   useEffect(() => {
     if (successMessage) {
@@ -95,12 +51,10 @@ export default function AdminSettingsPage() {
 
   const handleSaveGeneral = async () => {
     setSavingGeneral(true);
-    try {
-      saveToStorage('general', generalSettings);
-      setSuccessMessage('Genel ayarlar kaydedildi.');
-    } finally {
-      setSavingGeneral(false);
-    }
+    const ok = await saveSettings({ general: generalSettings });
+    if (ok) setSuccessMessage('Genel ayarlar kaydedildi.');
+    else setErrorMessage('Ayarlar kaydedilirken bir hata oluştu.');
+    setSavingGeneral(false);
   };
 
   const handleChangePassword = async () => {
@@ -116,7 +70,6 @@ export default function AdminSettingsPage() {
 
     setSavingPassword(true);
     try {
-      // Mevcut şifreyi doğrula
       const { data: userData } = await supabase.auth.getUser();
       const userEmail = userData?.user?.email;
 
@@ -135,7 +88,6 @@ export default function AdminSettingsPage() {
         return;
       }
 
-      // Şifreyi güncelle
       const { error: updateError } = await supabase.auth.updateUser({
         password: passwordData.newPassword
       });
@@ -154,22 +106,18 @@ export default function AdminSettingsPage() {
 
   const handleSaveNotifications = async () => {
     setSavingNotifications(true);
-    try {
-      saveToStorage('notifications', notifications);
-      setSuccessMessage('Bildirim tercihleri kaydedildi.');
-    } finally {
-      setSavingNotifications(false);
-    }
+    const ok = await saveSettings({ notifications });
+    if (ok) setSuccessMessage('Bildirim tercihleri kaydedildi.');
+    else setErrorMessage('Bildirimler kaydedilirken bir hata oluştu.');
+    setSavingNotifications(false);
   };
 
   const handleSaveMessages = async () => {
     setSavingMessages(true);
-    try {
-      saveToStorage('flightMessages', flightMessages);
-      setSuccessMessage('Uçuş mesajları kaydedildi.');
-    } finally {
-      setSavingMessages(false);
-    }
+    const ok = await saveSettings({ flightMessages });
+    if (ok) setSuccessMessage('Uçuş mesajları kaydedildi.');
+    else setErrorMessage('Mesajlar kaydedilirken bir hata oluştu.');
+    setSavingMessages(false);
   };
 
   return (
@@ -206,7 +154,15 @@ export default function AdminSettingsPage() {
         </div>
       )}
 
-      {/* Sekmeler */}
+      {loading && (
+        <div className="text-center py-12 text-gray-500">
+          <i className="ri-loader-4-line text-3xl animate-spin mb-2 block"></i>
+          Ayarlar yükleniyor...
+        </div>
+      )}
+
+      {!loading && (
+      /* Sekmeler */
       <div className="bg-white rounded-2xl shadow-lg border border-gray-100 mb-6">
         <div className="border-b border-gray-200 px-6">
           <div className="flex gap-1 overflow-x-auto">
@@ -594,8 +550,9 @@ export default function AdminSettingsPage() {
             </div>
           )}
         </div>
-        </div>
-        </div>
-      </AdminLayout>
+      </div>
+      )}
+    </div>
+    </AdminLayout>
   );
 }

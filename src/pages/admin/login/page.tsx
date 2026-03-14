@@ -44,7 +44,7 @@ export default function AdminLoginPage() {
         // React Router navigate — state korunur, full reload yok
         navigate('/admin/dashboard', { replace: true });
       } else {
-        setError(`Bu hesap admin yetkisine sahip değil (role: ${signedInProfile?.role || 'bulunamadı'})`);
+        setError('E-posta veya şifre hatalı.');
         setLoading(false);
       }
     } catch (err) {

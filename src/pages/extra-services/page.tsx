@@ -43,6 +43,15 @@ const ExtraServicesPage = () => {
 
     try {
       const parsed = JSON.parse(data);
+      if (
+        !parsed.flightId ||
+        !parsed.price ||
+        !Array.isArray(parsed.passengers) ||
+        parsed.passengers.length === 0
+      ) {
+        navigate('/ucus-ara');
+        return;
+      }
       setBookingData(parsed);
     } catch {
       navigate('/ucus-ara');
@@ -119,7 +128,7 @@ const ExtraServicesPage = () => {
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Header />
       
-      <main className="flex-1 pt-20">
+      <main className="flex-1 pt-4">
         <BookingStepper currentStep={3} />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

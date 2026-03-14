@@ -1,55 +1,18 @@
 import { useState } from 'react';
 import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
-import { faqData } from '../../mocks/faq';
-import { useSendMessage } from '../../hooks/useMessages';
+import { useFaq } from '../../hooks/useFaq';
 
 export default function YardimPage() {
-  const [openFaqId, setOpenFaqId] = useState<number | null>(null);
+  const [openFaqId, setOpenFaqId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('Tümü');
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    subject: '',
-    message: ''
-  });
-  const [formSubmitted, setFormSubmitted] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const { send } = useSendMessage();
+  const { faqs, loading, error } = useFaq();
 
   const categories = ['Tümü', 'Bagaj Kuralları', 'Check-in', 'İptal ve Değişiklik', 'Ödeme', 'VIP Hizmetler'];
 
   const filteredFaqs = selectedCategory === 'Tümü'
-    ? faqData
-    : faqData.filter(faq => faq.category === selectedCategory);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
-    setSubmitting(true);
-
-    const { error } = await send({
-      sender_name: formData.name,
-      email: formData.email,
-      subject: formData.subject,
-      message: formData.message,
-      category: formData.subject,
-    });
-
-    setSubmitting(false);
-
-    if (error) {
-      setFormError('Mesajınız gönderilemedi. Lütfen tekrar deneyin.');
-      return;
-    }
-
-    setFormSubmitted(true);
-    setTimeout(() => {
-      setFormSubmitted(false);
-      setFormData({ name: '', email: '', subject: '', message: '' });
-    }, 3000);
-  };
+    ? faqs
+    : faqs.filter(faq => faq.category === selectedCategory);
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -58,13 +21,13 @@ export default function YardimPage() {
         {/* Hero Section - diğer sayfalarla tutarlı */}
         <div className="relative bg-gradient-to-br from-red-600 via-red-500 to-red-700 pt-16 pb-16">
           <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/20"></div>
-          <div className="relative z-10 max-w-4xl mx-auto px-8 text-center">
+          <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-8 text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-full mb-6">
               <i className="ri-customer-service-2-line text-3xl text-white"></i>
             </div>
-            <h1 className="text-5xl font-bold text-white mb-4">Yardım Merkezi</h1>
+            <h1 className="text-3xl sm:text-5xl font-bold text-white mb-4">Yardım Merkezi</h1>
             <p className="text-xl text-red-100">Size nasıl yardımcı olabiliriz?</p>
-            <div className="flex items-center justify-center gap-8 mt-8">
+            <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 mt-8">
               {['7/24 Destek', 'Hızlı Yanıt', 'Uzman Ekip'].map((item, i) => (
                 <div key={i} className="flex items-center gap-2 text-white/90 text-sm">
                   <i className="ri-check-line text-red-200"></i>
@@ -75,7 +38,7 @@ export default function YardimPage() {
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-8 pb-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 pb-16">
           {/* Quick Contact Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 -mt-10 relative z-10 mb-16">
             <div className="bg-white rounded-2xl shadow-xl p-6 text-center hover:shadow-2xl transition-all cursor-pointer border border-gray-100">
@@ -84,7 +47,7 @@ export default function YardimPage() {
               </div>
               <h3 className="text-base font-bold text-gray-900 mb-1">Telefon Desteği</h3>
               <p className="text-gray-500 text-sm mb-3">7/24 Müşteri Hizmetleri</p>
-              <a href="tel:08508502020" className="text-red-600 font-bold text-lg hover:text-red-700">0850 850 20 20</a>
+              <a href="tel:4447239" className="text-red-600 font-bold text-lg hover:text-red-700">444 7 239</a>
             </div>
 
             <div className="bg-white rounded-2xl shadow-xl p-6 text-center hover:shadow-2xl transition-all cursor-pointer border border-gray-100">
@@ -93,7 +56,7 @@ export default function YardimPage() {
               </div>
               <h3 className="text-base font-bold text-gray-900 mb-1">WhatsApp Destek</h3>
               <p className="text-gray-500 text-sm mb-3">Hızlı ve Kolay İletişim</p>
-              <a href="https://wa.me/908508502020" className="text-red-600 font-bold text-lg hover:text-red-700">WhatsApp ile Yaz</a>
+              <a href="https://wa.me/908504447239" className="text-red-600 font-bold text-lg hover:text-red-700">WhatsApp ile Yaz</a>
             </div>
 
             <div className="bg-white rounded-2xl shadow-xl p-6 text-center hover:shadow-2xl transition-all cursor-pointer border border-gray-100">
@@ -129,6 +92,21 @@ export default function YardimPage() {
 
             {/* FAQ Accordion */}
             <div className="max-w-4xl mx-auto space-y-3">
+              {loading && (
+                <div className="text-center py-12 text-gray-500">
+                  <i className="ri-loader-4-line text-3xl animate-spin mb-2 block"></i>
+                  Sorular yükleniyor...
+                </div>
+              )}
+              {error && (
+                <div className="text-center py-12 text-red-500">
+                  <i className="ri-error-warning-line text-3xl mb-2 block"></i>
+                  Sorular yüklenirken bir hata oluştu.
+                </div>
+              )}
+              {!loading && !error && filteredFaqs.length === 0 && (
+                <div className="text-center py-12 text-gray-400">Bu kategoride soru bulunamadı.</div>
+              )}
               {filteredFaqs.map((faq) => (
                 <div
                   key={faq.id}
@@ -166,10 +144,10 @@ export default function YardimPage() {
                 <table className="w-full">
                   <thead className="bg-red-600 text-white">
                     <tr>
-                      <th className="px-6 py-4 text-left font-semibold text-sm">Bagaj Tipi</th>
-                      <th className="px-6 py-4 text-left font-semibold text-sm">Normal Uçuş</th>
-                      <th className="px-6 py-4 text-left font-semibold text-sm">VIP Uçuş</th>
-                      <th className="px-6 py-4 text-left font-semibold text-sm">Boyut Sınırı</th>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left font-semibold text-xs sm:text-sm whitespace-nowrap">Bagaj Tipi</th>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left font-semibold text-xs sm:text-sm whitespace-nowrap">Normal Uçuş</th>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left font-semibold text-xs sm:text-sm whitespace-nowrap">VIP Uçuş</th>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left font-semibold text-xs sm:text-sm whitespace-nowrap">Boyut Sınırı</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -180,10 +158,10 @@ export default function YardimPage() {
                       { type: 'Kişisel Eşya', normal: '1 Adet', vip: '1 Adet', size: '40x30x15 cm' },
                     ].map((row, i) => (
                       <tr key={i} className="hover:bg-red-50 transition-colors">
-                        <td className="px-6 py-4 font-medium text-gray-900 text-sm">{row.type}</td>
-                        <td className="px-6 py-4 text-gray-600 text-sm">{row.normal}</td>
-                        <td className="px-6 py-4 text-gray-600 text-sm">{row.vip}</td>
-                        <td className="px-6 py-4 text-gray-600 text-sm">{row.size}</td>
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 font-medium text-gray-900 text-xs sm:text-sm whitespace-nowrap">{row.type}</td>
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 text-gray-600 text-xs sm:text-sm whitespace-nowrap">{row.normal}</td>
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 text-gray-600 text-xs sm:text-sm whitespace-nowrap">{row.vip}</td>
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 text-gray-600 text-xs sm:text-sm whitespace-nowrap">{row.size}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -241,106 +219,6 @@ export default function YardimPage() {
             </div>
           </div>
 
-          {/* İletişim Formu */}
-          <div className="max-w-3xl mx-auto">
-            <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">Bize Ulaşın</h2>
-            <div className="bg-white rounded-2xl shadow-md p-8 border border-gray-100">
-              {formSubmitted ? (
-                <div className="text-center py-8">
-                  <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i className="ri-check-line text-4xl text-green-600"></i>
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Mesajınız Alındı!</h3>
-                  <p className="text-gray-600">En kısa sürede size geri dönüş yapacağız.</p>
-                </div>
-              ) : (
-                <form onSubmit={handleSubmit} className="space-y-5">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Ad Soyad <span className="text-red-600">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-red-500 focus:outline-none transition-all text-sm"
-                        placeholder="Adınız ve soyadınız"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        E-posta <span className="text-red-600">*</span>
-                      </label>
-                      <input
-                        type="email"
-                        required
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-red-500 focus:outline-none transition-all text-sm"
-                        placeholder="ornek@email.com"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Konu <span className="text-red-600">*</span>
-                    </label>
-                    <select
-                      required
-                      value={formData.subject}
-                      onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-red-500 focus:outline-none transition-all text-sm cursor-pointer"
-                    >
-                      <option value="">Konu seçiniz</option>
-                      <option value="rezervasyon">Rezervasyon</option>
-                      <option value="bagaj">Bagaj</option>
-                      <option value="check-in">Check-in</option>
-                      <option value="iptal">İptal ve İade</option>
-                      <option value="diger">Diğer</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Mesajınız <span className="text-red-600">*</span>
-                    </label>
-                    <textarea
-                      required
-                      value={formData.message}
-                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                      rows={5}
-                      maxLength={500}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-red-500 focus:outline-none transition-all resize-none text-sm"
-                      placeholder="Mesajınızı buraya yazın..."
-                    ></textarea>
-                    <p className="text-xs text-gray-400 mt-1">{formData.message.length}/500 karakter</p>
-                  </div>
-
-                  {formError && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-2">
-                      <i className="ri-error-warning-line text-lg"></i>
-                      <span className="text-sm">{formError}</span>
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="w-full bg-red-600 text-white py-4 rounded-xl font-bold text-base hover:bg-red-700 transition-all whitespace-nowrap cursor-pointer shadow-lg shadow-red-100 disabled:opacity-50"
-                  >
-                    {submitting ? (
-                      <><i className="ri-loader-4-line animate-spin mr-2"></i>Gönderiliyor...</>
-                    ) : (
-                      <><i className="ri-send-plane-line mr-2"></i>Mesaj Gönder</>
-                    )}
-                  </button>
-                </form>
-              )}
-            </div>
-          </div>
         </div>
       </main>
       <Footer />

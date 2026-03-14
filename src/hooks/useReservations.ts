@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { logger } from '../utils/logger';
 import { useAuth } from '../contexts/AuthContext';
 
 export interface ExtraServicesData {
@@ -57,9 +58,10 @@ export interface Reservation {
 
 function generatePNR(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const randomValues = crypto.getRandomValues(new Uint32Array(6));
   let pnr = 'BEY';
   for (let i = 0; i < 6; i++) {
-    pnr += chars.charAt(Math.floor(Math.random() * chars.length));
+    pnr += chars.charAt(randomValues[i] % chars.length);
   }
   return pnr;
 }
@@ -69,6 +71,7 @@ export function useUserReservations() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
   const refresh = useCallback(async () => {
     if (!user) { setReservations([]); setLoading(false); return; }
@@ -81,15 +84,20 @@ export function useUserReservations() {
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
+    if (!mountedRef.current) return;
     if (queryError) {
-      console.error('[useUserReservations] Supabase hatası:', queryError.message);
+      logger.error('[useUserReservations] Supabase hatası:', queryError.message);
       setError(queryError.message);
     }
     if (data) setReservations(data as Reservation[]);
     setLoading(false);
   }, [user]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    mountedRef.current = true;
+    refresh();
+    return () => { mountedRef.current = false; };
+  }, [refresh]);
 
   return { reservations, loading, error, refresh };
 }
@@ -98,25 +106,31 @@ export function useAdminReservations() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
     const { data, error: queryError } = await supabase
       .from('reservations')
-      .select('*, passengers(*)')
+      .select('id, pnr, user_id, flight_id, flight_number, route, flight_date, flight_time, status, total_price, flight_class, contact_email, contact_phone, extra_services, payment_method, payment_card_last4, created_at, passengers(first_name, last_name, tc_no, birth_date, gender, seat_number, passenger_type)')
       .order('created_at', { ascending: false })
       .limit(100);
 
+    if (!mountedRef.current) return;
     if (queryError) {
-      console.error('[useAdminReservations] Supabase hatası:', queryError.message);
+      logger.error('[useAdminReservations] Supabase hatası:', queryError.message);
       setError(queryError.message);
     }
     if (data) setReservations(data as Reservation[]);
     setLoading(false);
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    mountedRef.current = true;
+    refresh();
+    return () => { mountedRef.current = false; };
+  }, [refresh]);
 
   const updateStatus = async (id: string, status: string) => {
     const { error } = await supabase
@@ -150,7 +164,6 @@ export function useCreateReservation() {
   }) => {
     const pnr = generatePNR();
 
-    // Rezervasyon oluştur
     const { data: reservation, error: resError } = await supabase
       .from('reservations')
       .insert({
@@ -177,7 +190,6 @@ export function useCreateReservation() {
       return { pnr: null, error: resError?.message ?? 'Rezervasyon oluşturulamadı' };
     }
 
-    // Yolcuları ekle
     if (data.passengers.length > 0) {
       const { error: passError } = await supabase
         .from('passengers')
@@ -199,7 +211,6 @@ export function useCreateReservation() {
       }
     }
 
-    // Kayıtlı yolcuları güncelle
     if (user) {
       for (const p of data.passengers) {
         await supabase
@@ -216,15 +227,13 @@ export function useCreateReservation() {
       }
     }
 
-    // Uçuş koltuk sayısını güncelle (kapasite kontrolü dahil)
     const { data: seatResult, error: rpcError } = await supabase.rpc('increment_booked_seats', {
       p_flight_id: data.flightId,
       p_count: data.passengers.length,
     });
     if (rpcError) {
-      console.error('increment_booked_seats hatası:', rpcError.message);
+      logger.error('increment_booked_seats hatası:', rpcError.message);
     } else if (seatResult === false) {
-      // Kapasite dolu — rezervasyonu iptal et
       await supabase.from('passengers').delete().eq('reservation_id', reservation.id);
       await supabase.from('reservations').delete().eq('id', reservation.id);
       return { pnr: null, error: 'Bu uçuşta yeterli koltuk kalmadı. Lütfen başka bir uçuş seçin.' };
@@ -244,15 +253,19 @@ export function useSavedPassengers() {
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
+    let cancelled = false;
     setLoading(true);
     setError(null);
-    supabase
-      .from('saved_passengers')
-      .select('*')
-      .eq('user_id', user.id)
-      .then(({ data, error: fetchError }) => {
+
+    (async () => {
+      try {
+        const { data, error: fetchError } = await supabase
+          .from('saved_passengers')
+          .select('*')
+          .eq('user_id', user.id);
+        if (cancelled) return;
         if (fetchError) {
-          console.error('[useSavedPassengers] Supabase hatası:', fetchError.message);
+          logger.error('[useSavedPassengers] Supabase hatası:', fetchError.message);
           setError(fetchError.message);
         }
         if (data) setPassengers(data.map(p => ({
@@ -262,8 +275,15 @@ export function useSavedPassengers() {
           tcNo: p.tc_no,
           birthDate: p.birth_date,
         })));
-        setLoading(false);
-      });
+      } catch (err) {
+        if (cancelled) return;
+        logger.error('[useSavedPassengers] Beklenmeyen hata:', err);
+        setError('Kayıtlı yolcular yüklenirken hata oluştu');
+      }
+      if (!cancelled) setLoading(false);
+    })();
+
+    return () => { cancelled = true; };
   }, [user]);
 
   return { savedPassengers: passengers, loading, error };

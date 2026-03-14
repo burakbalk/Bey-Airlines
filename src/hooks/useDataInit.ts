@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { logger } from '../utils/logger';
 
 const DESTINATIONS = [
   {
@@ -135,17 +136,21 @@ export function useDataInit() {
 
     (async () => {
       try {
+        // sessionStorage flag: oturum boyunca tekrar Supabase sorgusu yapma
+        if (sessionStorage.getItem('dataInitDone')) return;
+        sessionStorage.setItem('dataInitDone', '1');
+
         // Destinations kontrolü
         const { count: destCount, error: destError } = await supabase
           .from('destinations')
           .select('id', { count: 'exact', head: true });
 
         if (destError) {
-          console.error('Destinations count hatası:', destError.message);
+          logger.error('Destinations count hatası:', destError.message);
         } else if ((destCount ?? 0) === 0) {
           const { error } = await supabase.from('destinations').upsert(DESTINATIONS, { onConflict: 'city', ignoreDuplicates: true });
           if (error) {
-            console.error('Destinations seed hatası:', error.message);
+            logger.error('Destinations seed hatası:', error.message);
           }
         }
 
@@ -155,15 +160,15 @@ export function useDataInit() {
           .select('id', { count: 'exact', head: true });
 
         if (faqError) {
-          console.error('FAQ count hatası:', faqError.message);
+          logger.error('FAQ count hatası:', faqError.message);
         } else if ((faqCount ?? 0) === 0) {
           const { error } = await supabase.from('faq').insert(FAQ);
           if (error) {
-            console.error('FAQ seed hatası:', error.message);
+            logger.error('FAQ seed hatası:', error.message);
           }
         }
       } catch (err) {
-        console.error('Data init hatası:', err);
+        logger.error('Data init hatası:', err);
       }
     })();
   }, []);

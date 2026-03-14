@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { logger } from '../utils/logger';
 
 export interface FlightResult {
   id: number;
@@ -69,26 +70,35 @@ export function useFlightsByDate(date: string | null, from?: string, to?: string
 
   useEffect(() => {
     if (!date) return;
+    let cancelled = false;
     setLoading(true);
     setError(null);
 
-    let query = supabase
-      .from('flights')
-      .select('*')
-      .eq('flight_date', date)
-      .order('departure_time');
+    (async () => {
+      try {
+        let query = supabase
+          .from('flights')
+          .select('*')
+          .eq('flight_date', date)
+          .order('departure_time');
 
-    if (from) query = query.eq('from_city', from);
-    if (to) query = query.eq('to_city', to);
+        if (from) query = query.eq('from_city', from);
+        if (to) query = query.eq('to_city', to);
 
-    query.then(({ data, error: fetchError }) => {
-      if (fetchError) {
-        console.error('[useFlightsByDate] Supabase hatası:', fetchError.message);
-        setError(fetchError.message);
+        const { data, error: fetchError } = await query;
+        if (cancelled) return;
+        if (fetchError) {
+          logger.error('[useFlightsByDate] Supabase hatası:', fetchError.message);
+          setError(fetchError.message);
+        }
+        if (data) setFlights(data as FlightResult[]);
+      } catch {
+        // ignore
       }
-      if (data) setFlights(data as FlightResult[]);
-      setLoading(false);
-    });
+      if (!cancelled) setLoading(false);
+    })();
+
+    return () => { cancelled = true; };
   }, [date, from, to]);
 
   return { flights, loading, error };
@@ -129,7 +139,13 @@ export function useFlightStatus() {
           .eq('id', data.flight_id)
           .single();
 
-        if (flightData) setFlights([flightData as FlightResult]);
+        if (flightData) {
+          setFlights([flightData as FlightResult]);
+        } else {
+          setError('Uçuş bulunamadı.');
+        }
+      } else {
+        setError('Uçuş bulunamadı.');
       }
       setLoading(false);
       return;
@@ -143,7 +159,7 @@ export function useFlightStatus() {
       .eq('flight_date', searchDate);
 
     if (searchType === 'flightNumber') {
-      const flightNum = value.toUpperCase();
+      const flightNum = value.slice(0, 10).toUpperCase().replace(/%/g, '');
       query = query.ilike('flight_number', `%${flightNum}%`);
     } else if (from && to) {
       query = query.eq('from_city', from).eq('to_city', to);
@@ -177,25 +193,18 @@ export function useAllFlights() {
     setError(null);
     const today = new Date().toISOString().split('T')[0];
 
-    // Get total count
-    const { count } = await supabase
-      .from('flights')
-      .select('id', { count: 'exact', head: true })
-      .gte('flight_date', today);
-    if (!mountedRef.current) return;
-    setTotalCount(count ?? 0);
-
     const from = currentPage * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
-    const { data, error: fetchError } = await supabase
+    const { data, count, error: fetchError } = await supabase
       .from('flights')
-      .select(ALL_FLIGHTS_FIELDS)
+      .select(ALL_FLIGHTS_FIELDS, { count: 'exact' })
       .gte('flight_date', today)
       .order('flight_date')
       .order('departure_time')
       .range(from, to);
     if (!mountedRef.current) return;
+    setTotalCount(count ?? 0);
     if (fetchError) {
       setError(fetchError.message);
     }
@@ -242,7 +251,7 @@ export function useAircraft() {
       .order('id');
     if (!mountedRef.current) return;
     if (fetchError) {
-      console.error('[useAircraft] Supabase hatası:', fetchError.message);
+      logger.error('[useAircraft] Supabase hatası:', fetchError.message);
       setError(fetchError.message);
     }
     if (data) setAircraft(data as Aircraft[]);
@@ -310,7 +319,7 @@ export function useFlightSchedule() {
       .order('flight_code');
     if (!mountedRef.current) return;
     if (fetchError) {
-      console.error('[useFlightSchedule] Supabase hatası:', fetchError.message);
+      logger.error('[useFlightSchedule] Supabase hatası:', fetchError.message);
       setError(fetchError.message);
     }
     if (data) {

@@ -15,7 +15,7 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
-        cinzel: ['"Cinzel"', 'serif'],
+        playfair: ['"Playfair Display"', 'serif'],
       },
       keyframes: {
         'fade-up': {
