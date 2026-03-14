@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../../../components/admin/AdminLayout';
+import { getTodayTR } from '../../../utils/date';
 import { useAllFlights, useFlightSchedule, useAircraft, FlightResult, ScheduleEntry } from '../../../hooks/useFlights';
 import { supabase } from '../../../lib/supabase';
 
@@ -57,7 +58,7 @@ export default function AdminFlightsPage() {
 
   // Generate modal
   const [showGenerateModal, setShowGenerateModal] = useState(false);
-  const [genStartDate, setGenStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [genStartDate, setGenStartDate] = useState(getTodayTR());
   const [genWeeks, setGenWeeks] = useState(4);
   const [generating, setGenerating] = useState(false);
 
@@ -241,7 +242,7 @@ export default function AdminFlightsPage() {
 
   // ======================== ÜRETIM BİLGİSİ ========================
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayTR();
   const maxDateObj = maxFlightDate ? new Date(maxFlightDate) : null;
   const daysRemaining = maxDateObj ? Math.max(0, Math.ceil((maxDateObj.getTime() - new Date(today).getTime()) / 86400000)) : null;
 
@@ -395,7 +396,7 @@ export default function AdminFlightsPage() {
                           <td className="px-4 py-3 whitespace-nowrap">
                             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                               entry.flight_class === 'vip' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-gray-100 text-gray-600'
-                            }`}>{entry.flight_class === 'vip' ? 'VIP' : 'Normal'}</span>
+                            }`}>{entry.flight_class === 'vip' ? 'VIP' : 'Premium'}</span>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{entry.capacity}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">₺{Number(entry.price).toLocaleString('tr-TR')}</td>
@@ -440,14 +441,14 @@ export default function AdminFlightsPage() {
             <div className="space-y-6">
               {/* Filtreler + Toplu İşlem */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div className="relative">
+                <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                  <div className="relative sm:w-72 shrink-0">
                     <i className="ri-search-line absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
                     <input type="text" placeholder="Uçuş no veya rota ara..." value={searchTerm}
                       onChange={e => setSearchTerm(e.target.value)}
                       className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-sm" />
                   </div>
-                  <div className="flex gap-2 flex-wrap">
+                  <div className="flex gap-2 flex-wrap items-center">
                     <button onClick={() => setStatusFilter('Tümü')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap cursor-pointer ${statusFilter === 'Tümü' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>Tümü</button>
                     {FLIGHT_STATUSES.map(s => (
                       <button key={s.value} onClick={() => setStatusFilter(s.value)}
@@ -499,7 +500,7 @@ export default function AdminFlightsPage() {
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               <div className="font-semibold text-gray-900">{flight.flight_number}</div>
-                              <div className="text-xs text-gray-500">{flight.flight_class === 'vip' ? 'VIP' : 'Normal'}</div>
+                              <div className="text-xs text-gray-500">{flight.flight_class === 'vip' ? 'VIP' : 'Premium'}</div>
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               <div className="flex items-center gap-1.5 text-sm font-medium text-gray-900">
@@ -603,7 +604,7 @@ export default function AdminFlightsPage() {
                         <p className="text-sm text-gray-500 mb-3">{plane.registration}</p>
                         <div className="flex items-center gap-4 text-xs text-gray-600 mb-4">
                           <span><i className="ri-group-line mr-1"></i>{plane.capacity} koltuk</span>
-                          <span className={`font-semibold ${isVip ? 'text-amber-600' : 'text-blue-600'}`}>{isVip ? 'VIP' : 'Normal'}</span>
+                          <span className={`font-semibold ${isVip ? 'text-amber-600' : 'text-blue-600'}`}>{isVip ? 'VIP' : 'Premium'}</span>
                         </div>
                         {assignedRoutes.length > 0 && (
                           <div className="border-t border-gray-100 pt-3">
@@ -656,7 +657,7 @@ export default function AdminFlightsPage() {
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm cursor-pointer">
                       <option value={0}>Seçiniz...</option>
                       {aircraft.filter(a => a.is_active).map(a => (
-                        <option key={a.id} value={a.id}>{a.registration} — {a.model} ({a.capacity} koltuk, {a.aircraft_type === 'vip' ? 'VIP' : 'Normal'})</option>
+                        <option key={a.id} value={a.id}>{a.registration} — {a.model} ({a.capacity} koltuk, {a.aircraft_type === 'vip' ? 'VIP' : 'Premium'})</option>
                       ))}
                     </select>
                   </div>
@@ -710,7 +711,7 @@ export default function AdminFlightsPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Sınıf</label>
                     <select value={scheduleForm.flight_class} onChange={e => setScheduleForm({...scheduleForm, flight_class: e.target.value})}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm cursor-pointer">
-                      <option value="normal">Normal</option>
+                      <option value="normal">Premium</option>
                       <option value="vip">VIP</option>
                     </select>
                   </div>
@@ -903,7 +904,7 @@ export default function AdminFlightsPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Tip</label>
                     <select value={aircraftForm.aircraft_type} onChange={e => setAircraftForm({...aircraftForm, aircraft_type: e.target.value})}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm cursor-pointer">
-                      <option value="normal">Normal</option>
+                      <option value="normal">Premium</option>
                       <option value="vip">VIP</option>
                     </select>
                   </div>

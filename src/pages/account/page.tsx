@@ -319,17 +319,17 @@ export default function AccountPage() {
               )}
 
               {activeSection === 'reservations' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between mb-4">
+                <div className="bg-white rounded-2xl shadow-md p-4 sm:p-8 border border-gray-100">
+                  <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-bold text-gray-900">Rezervasyonlarım</h2>
                     <span className="text-sm text-gray-500">{reservations.length} Rezervasyon</span>
                   </div>
                   {reservationsLoading ? (
-                    <div className="bg-white rounded-2xl shadow-md p-12 border border-gray-100 text-center">
+                    <div className="py-12 text-center">
                       <i className="ri-loader-4-line animate-spin text-4xl text-red-600"></i>
                     </div>
                   ) : reservations.length === 0 ? (
-                    <div className="bg-white rounded-2xl shadow-md p-12 border border-gray-100 text-center">
+                    <div className="py-12 text-center">
                       <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                         <i className="ri-flight-takeoff-line text-4xl text-gray-400"></i>
                       </div>
@@ -340,8 +340,8 @@ export default function AccountPage() {
                       </Link>
                     </div>
                   ) : (
-                    reservations.map((reservation) => (
-                      <div key={reservation.id} className="bg-white rounded-2xl shadow-md p-3 sm:p-6 border border-gray-100">
+                    <div className="space-y-4">{reservations.map((reservation) => (
+                      <div key={reservation.id} className="rounded-xl p-3 sm:p-5 border border-gray-200 bg-gray-50/50">
                         <div className="flex items-start justify-between mb-4">
                           <div>
                             <div className="flex items-center gap-3 mb-1">
@@ -354,7 +354,7 @@ export default function AccountPage() {
                             </div>
                             <p className="text-gray-500 text-sm">PNR: <span className="font-semibold text-gray-700">{reservation.pnr}</span></p>
                           </div>
-                          <span className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${reservation.status === 'Onaylandi' || reservation.status === 'Onaylandı' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>
+                          <span className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${reservation.status === 'Onaylandı' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>
                             {reservation.status}
                           </span>
                         </div>
@@ -383,7 +383,7 @@ export default function AccountPage() {
                             >
                               Detaylar
                             </button>
-                            {(reservation.status === 'Onaylandi' || reservation.status === 'Onaylandı') && (
+                            {reservation.status === 'Onaylandı' && (
                               <Link
                                 to="/check-in"
                                 className="px-5 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-medium whitespace-nowrap cursor-pointer text-sm"
@@ -394,7 +394,7 @@ export default function AccountPage() {
                           </div>
                         </div>
                       </div>
-                    ))
+                    ))}</div>
                   )}
                 </div>
               )}

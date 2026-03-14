@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { logger } from '../utils/logger';
+import { getTodayTR } from '../utils/date';
 
 export interface FlightResult {
   id: number;
@@ -32,7 +33,7 @@ export function toFlightCardFormat(f: FlightResult) {
   return {
     id: f.id,
     flightNumber: f.flight_number,
-    flightClass: f.flight_class,
+    flightClass: f.flight_class === 'normal' ? 'premium' : f.flight_class,
     departure: { time: f.departure_time?.slice(0, 5), airport: f.from_code, city: f.from_city },
     arrival: { time: f.arrival_time?.slice(0, 5), airport: f.to_code, city: f.to_city },
     duration: f.duration,
@@ -42,6 +43,7 @@ export function toFlightCardFormat(f: FlightResult) {
     meal: f.meal,
     changeable: f.changeable,
     date: f.flight_date,
+    availableSeats: f.capacity - f.booked_seats,
   };
 }
 
@@ -67,12 +69,17 @@ export function useFlightsByDate(date: string | null, from?: string, to?: string
   const [flights, setFlights] = useState<FlightResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     if (!date) return;
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setFlights([]);
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000); // 10sn timeout
 
     (async () => {
       try {
@@ -80,7 +87,8 @@ export function useFlightsByDate(date: string | null, from?: string, to?: string
           .from('flights')
           .select('*')
           .eq('flight_date', date)
-          .order('departure_time');
+          .order('departure_time')
+          .abortSignal(controller.signal);
 
         if (from) query = query.eq('from_city', from);
         if (to) query = query.eq('to_city', to);
@@ -89,19 +97,27 @@ export function useFlightsByDate(date: string | null, from?: string, to?: string
         if (cancelled) return;
         if (fetchError) {
           logger.error('[useFlightsByDate] Supabase hatası:', fetchError.message);
-          setError(fetchError.message);
+          setError('Uçuşlar yüklenemedi. Lütfen tekrar deneyin.');
+        } else {
+          setFlights((data ?? []) as FlightResult[]);
         }
-        if (data) setFlights(data as FlightResult[]);
-      } catch {
-        // ignore
+      } catch (err: unknown) {
+        if (cancelled) return;
+        const isAbort = err instanceof Error && err.name === 'AbortError';
+        setError(isAbort ? 'İstek zaman aşımına uğradı. Lütfen tekrar deneyin.' : 'Bağlantı hatası. İnternet bağlantınızı kontrol edin.');
+        logger.error('[useFlightsByDate] Hata:', err);
+      } finally {
+        clearTimeout(timeout);
+        if (!cancelled) setLoading(false);
       }
-      if (!cancelled) setLoading(false);
     })();
 
-    return () => { cancelled = true; };
-  }, [date, from, to]);
+    return () => { cancelled = true; controller.abort(); clearTimeout(timeout); };
+  }, [date, from, to, retryCount]);
 
-  return { flights, loading, error };
+  const retry = useCallback(() => setRetryCount(c => c + 1), []);
+
+  return { flights, loading, error, retry };
 }
 
 export function useFlightStatus() {
@@ -151,7 +167,7 @@ export function useFlightStatus() {
       return;
     }
 
-    const searchDate = date || new Date().toISOString().split('T')[0];
+    const searchDate = date || getTodayTR();
 
     let query = supabase
       .from('flights')
@@ -191,7 +207,7 @@ export function useAllFlights() {
     const currentPage = p ?? page;
     setLoading(true);
     setError(null);
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayTR();
 
     const from = currentPage * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
@@ -344,11 +360,11 @@ export function useFlightSchedule() {
 
   /** Fiyatı hem flight_schedule'da hem gelecekteki flights'ta günceller */
   const updatePrice = useCallback(async (scheduleId: number, flightCode: string, newPrice: number) => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayTR();
     const [schedResult, flightsResult] = await Promise.all([
       supabase.from('flight_schedule').update({ price: newPrice }).eq('id', scheduleId),
       supabase.from('flights').update({ price: newPrice })
-        .eq('flight_number', flightCode)
+        .like('flight_number', flightCode + '-%')
         .gte('flight_date', today),
     ]);
     const error = schedResult.error?.message || flightsResult.error?.message || null;

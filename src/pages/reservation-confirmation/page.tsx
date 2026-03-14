@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import Header from '../../components/feature/Header';
@@ -22,6 +22,7 @@ interface ReservationData {
     toCode: string;
     date: string;
     time: string;
+    arrivalTime?: string;
     flightNumber: string;
     duration: string;
     airline: string;
@@ -62,6 +63,9 @@ export default function ReservationConfirmationPage() {
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [emailSuccess, setEmailSuccess] = useState(false);
   const [error, setError] = useState('');
+  // EK GÖREV 2: E-posta rate limit — 60 saniye bekleme
+  const lastEmailSentAt = useRef<number | null>(null);
+  const [emailCooldown, setEmailCooldown] = useState(0);
 
   useEffect(() => {
     if (!pnr || !pnr.trim()) {
@@ -113,6 +117,7 @@ export default function ReservationConfirmationPage() {
               toCode: flightInfo.to_code || cityCodeMap[to] || to?.substring(0, 3).toUpperCase() || '',
               date: res.flight_date,
               time: res.flight_time,
+              arrivalTime: flightInfo.arrival_time?.slice(0, 5) || '',
               flightNumber: res.flight_number,
               duration: flightInfo.duration || '',
               airline: 'Bey Airlines',
@@ -165,8 +170,23 @@ export default function ReservationConfirmationPage() {
     }, 1500);
   };
 
+  // EK GÖREV 2: Geri sayım timer
+  useEffect(() => {
+    if (emailCooldown <= 0) return;
+    const timer = setTimeout(() => setEmailCooldown(c => Math.max(0, c - 1)), 1000);
+    return () => clearTimeout(timer);
+  }, [emailCooldown]);
+
   const handleSendEmail = async () => {
     if (!reservation) return;
+    // EK GÖREV 2: Rate limit — 60 saniye içinde tekrar gönderme izni yok
+    const now = Date.now();
+    const RATE_LIMIT_MS = 60_000;
+    if (lastEmailSentAt.current && now - lastEmailSentAt.current < RATE_LIMIT_MS) {
+      const remaining = Math.ceil((RATE_LIMIT_MS - (now - lastEmailSentAt.current)) / 1000);
+      setEmailCooldown(remaining);
+      return;
+    }
     setSending(true);
     setError('');
 
@@ -190,6 +210,8 @@ export default function ReservationConfirmationPage() {
     if (fnError) {
       setError('E-posta gönderilemedi. Lütfen tekrar deneyin.');
     } else {
+      lastEmailSentAt.current = Date.now();
+      setEmailCooldown(60);
       setEmailSuccess(true);
       setTimeout(() => setEmailSuccess(false), 4000);
     }
@@ -316,7 +338,7 @@ export default function ReservationConfirmationPage() {
                     <p className="text-red-100 text-sm mb-2">Varış</p>
                     <p className="text-3xl sm:text-5xl font-bold mb-2">{reservation.flight.toCode}</p>
                     <p className="text-lg">{reservation.flight.to}</p>
-                    <p className="text-red-100 mt-2">~{(() => {
+                    <p className="text-red-100 mt-2">{reservation.flight.arrivalTime || (() => {
                       const timeParts = reservation.flight.time?.split(':').map(Number);
                       if (!timeParts || timeParts.length < 2 || isNaN(timeParts[0]) || isNaN(timeParts[1])) return '--:--';
                       const [h, m] = timeParts;
@@ -492,13 +514,18 @@ export default function ReservationConfirmationPage() {
 
             <button
               onClick={handleSendEmail}
-              disabled={sending}
-              className="bg-white border-2 border-gray-300 text-gray-900 px-6 py-4 rounded-xl font-semibold hover:border-red-600 hover:text-red-600 transition-all flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50"
+              disabled={sending || emailCooldown > 0}
+              className="bg-white border-2 border-gray-300 text-gray-900 px-6 py-4 rounded-xl font-semibold hover:border-red-600 hover:text-red-600 transition-all flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {sending ? (
                 <>
                   <i className="ri-loader-4-line animate-spin"></i>
                   Gönderiliyor...
+                </>
+              ) : emailCooldown > 0 ? (
+                <>
+                  <i className="ri-time-line text-xl"></i>
+                  {emailCooldown}s bekleyin
                 </>
               ) : (
                 <>

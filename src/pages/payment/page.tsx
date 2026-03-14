@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
@@ -59,6 +59,10 @@ const PaymentPage = () => {
 
   const [bookingData, setBookingData] = useState<BookingData | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  // P5: Çift tıklama koruması
+  const paymentInProgress = useRef(false);
+  // P5: Her booking akışı için tek seferlik benzersiz token
+  const bookingToken = useRef(crypto.randomUUID());
 
   const [cardNumber, setCardNumber] = useState('');
   const [cardName, setCardName] = useState('');
@@ -148,22 +152,30 @@ const PaymentPage = () => {
   };
 
   const handlePayment = async () => {
+    // P5: Çift tıklama koruması
+    if (paymentInProgress.current) return;
+    paymentInProgress.current = true;
+
     // Validasyon
     setPaymentError(null);
     if (!cardNumber || cardNumber.replace(/\s/g, '').length !== 16) {
       setPaymentError('Lütfen geçerli bir kart numarası giriniz (16 hane).');
+      paymentInProgress.current = false;
       return;
     }
     if (!cardName) {
       setPaymentError('Lütfen kart üzerindeki ismi giriniz.');
+      paymentInProgress.current = false;
       return;
     }
     if (!expiryDate || expiryDate.length !== 5) {
       setPaymentError('Lütfen geçerli bir son kullanma tarihi giriniz (AA/YY).');
+      paymentInProgress.current = false;
       return;
     }
     if (!cvv || cvv.length !== 3) {
       setPaymentError('Lütfen geçerli bir CVV kodu giriniz (3 hane).');
+      paymentInProgress.current = false;
       return;
     }
 
@@ -177,7 +189,7 @@ const PaymentPage = () => {
 
     const flightNumber = bookingData.flightNumber || `BEY${bookingData.flightId}`;
     const flightTime = bookingData.flightTime || '00:00';
-    const flightClassLabel = bookingData.flightClass === 'vip' ? 'VIP' : 'Ekonomi';
+    const flightClassLabel = bookingData.flightClass === 'vip' ? 'VIP' : 'Premium';
 
     // Create reservation via Supabase
     const { pnr, error } = await createReservation({
@@ -207,10 +219,12 @@ const PaymentPage = () => {
         seat_number: bookingData.seats?.[i]?.seatId || '-',
         passenger_type: p.type === 'child' ? 'Çocuk' : p.type === 'infant' ? 'Bebek' : 'Yetişkin',
       })),
+      bookingToken: bookingToken.current,
     });
 
     if (error || !pnr) {
       setIsProcessing(false);
+      paymentInProgress.current = false;
       setPaymentError(error || 'Rezervasyon oluşturulurken bir hata oluştu.');
       return;
     }

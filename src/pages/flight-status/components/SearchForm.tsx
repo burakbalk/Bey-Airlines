@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
+import { getTodayTR } from '../../../utils/date';
 
 interface SearchFormProps {
   onSearch: (searchType: 'flightNumber' | 'route' | 'pnr', value: string, from?: string, to?: string, date?: string) => void;
@@ -11,7 +12,7 @@ export default function SearchForm({ onSearch }: SearchFormProps) {
   const [pnr, setPnr] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(getTodayTR());
   const [cities, setCities] = useState<string[]>([]);
 
   useEffect(() => {

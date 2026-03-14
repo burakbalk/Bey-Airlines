@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS aircraft (
   registration VARCHAR(20) UNIQUE NOT NULL,   -- TC-BEY01, TC-BEY02...
   model VARCHAR(100) NOT NULL,                -- Boeing 737-800, Bombardier Global 7500
   capacity INT NOT NULL,                      -- 180, 24
-  aircraft_type VARCHAR(10) NOT NULL CHECK (aircraft_type IN ('normal', 'vip')),
+  aircraft_type VARCHAR(10) NOT NULL CHECK (aircraft_type IN ('premium', 'vip')),
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS flight_schedule (
   departure_time TIME NOT NULL,
   arrival_time TIME NOT NULL,
   duration VARCHAR(20) NOT NULL,
-  flight_class VARCHAR(10) NOT NULL CHECK (flight_class IN ('normal', 'vip')),
+  flight_class VARCHAR(10) NOT NULL CHECK (flight_class IN ('premium', 'vip')),
   price DECIMAL(10,2) NOT NULL,
   baggage BOOLEAN DEFAULT true,
   meal BOOLEAN DEFAULT true,
@@ -115,6 +115,10 @@ CREATE TABLE IF NOT EXISTS reservations (
   extra_services JSONB DEFAULT '{}',
   payment_method VARCHAR(30),
   payment_card_last4 VARCHAR(4),
+  -- Çift rezervasyon koruması: rezervasyon akışı başlangıcında üretilen UUID token.
+  -- Frontend INSERT öncesi token üretir; aynı token ile ikinci INSERT unique violation
+  -- fırlatır — network retry'ları duplicate reservation oluşturmaz.
+  booking_token UUID UNIQUE,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -122,6 +126,10 @@ CREATE TABLE IF NOT EXISTS reservations (
 CREATE TABLE IF NOT EXISTS passengers (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   reservation_id UUID REFERENCES reservations(id) ON DELETE CASCADE,
+  -- Koltuk çakışması kontrolü için denormalize flight_id.
+  -- reservations.flight_id ile senkronize tutulur — INSERT sırasında set edilmeli.
+  -- Partial unique index idx_unique_seat_per_flight bu kolona dayanır.
+  flight_id INT REFERENCES flights(id),
   first_name VARCHAR(50) NOT NULL,
   last_name VARCHAR(50) NOT NULL,
   tc_no VARCHAR(11),
@@ -131,6 +139,16 @@ CREATE TABLE IF NOT EXISTS passengers (
   passenger_type VARCHAR(20) DEFAULT 'Yetişkin',
   checked_in BOOLEAN DEFAULT false
 );
+
+-- Koltuk çakışması engelleyici partial unique index.
+-- Aynı uçuşta (flight_id) aynı koltuk numarası (seat_number) birden fazla
+-- yolcuya atanamaz. '-' ve NULL değerler koltuk seçilmemiş anlamına gelir,
+-- bunlar constraint dışında tutulur.
+-- İptal edilen rezervasyonlar: ilgili passenger satırları ON DELETE CASCADE ile
+-- silinir, bu sayede iptal sonrası koltuk otomatik serbest kalır.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_seat_per_flight
+  ON public.passengers (flight_id, seat_number)
+  WHERE seat_number IS NOT NULL AND seat_number != '-';
 
 -- 6. SAVED PASSENGERS
 CREATE TABLE IF NOT EXISTS saved_passengers (
@@ -315,18 +333,47 @@ CREATE POLICY "Admins can manage faq" ON faq FOR ALL USING (is_admin());
 
 -- PNR ile rezervasyon sorgulama (misafir + giriş yapmış kullanıcılar)
 -- SECURITY DEFINER: RLS'i bypass ederek sadece verilen PNR'a ait veriyi döndürür.
--- Brute-force koruması: Supabase Edge'de rate limiting yapılandırılmalıdır.
---   Önerilen: Supabase Dashboard > API > Rate Limits veya nginx/Cloudflare kuralı ile
---   aynı IP'den dakikada max 10 RPC çağrısına izin ver.
---   PNR formatı BEY + 6 alfanumerik ≈ 2.1 milyar kombinasyon olduğundan
---   rate limiting olmadan da pratik brute-force süresi çok yüksektir,
---   ancak production ortamında rate limiting eklenmesi şiddetle tavsiye edilir.
+--
+-- Soyad doğrulaması (p_last_name):
+--   NULL → soyad kontrolü yapılmaz (reservation-confirmation, flight-status gibi
+--           PNR'ı zaten bilen sayfalar için geriye dönük uyumlu davranış).
+--   Dolu → passengers tablosundan en az bir yolcunun soyadı eşleşmeli;
+--           eşleşmezse NULL döner — client "rezervasyon bulunamadı" gösterir.
+--   Güvenlik notu: p_last_name dolu geldiğinde kaba kuvvet PNR taraması
+--   soyad faktörüyle ek bir engele çarpar. Yine de Supabase Edge'de rate
+--   limiting (dakikada max 10 RPC/IP) yapılandırılması şiddetle tavsiye edilir.
+--
 -- Passengers ve flight bilgilerini de içerir — tek sorgu yeterlidir.
-CREATE OR REPLACE FUNCTION get_reservation_by_pnr(p_pnr TEXT)
+CREATE OR REPLACE FUNCTION get_reservation_by_pnr(
+  p_pnr       TEXT,
+  p_last_name TEXT DEFAULT NULL
+)
 RETURNS JSONB AS $$
 DECLARE
-  v_result JSONB;
+  v_reservation_id UUID;
+  v_result         JSONB;
 BEGIN
+  -- 1. PNR'ı bul
+  SELECT id INTO v_reservation_id
+  FROM public.reservations
+  WHERE pnr = UPPER(TRIM(p_pnr));
+
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+
+  -- 2. Soyad doğrulaması (isteğe bağlı)
+  IF p_last_name IS NOT NULL THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM public.passengers
+      WHERE reservation_id = v_reservation_id
+        AND LOWER(last_name) = LOWER(TRIM(p_last_name))
+    ) THEN
+      RETURN NULL;  -- Soyad eşleşmedi — veri döndürme
+    END IF;
+  END IF;
+
+  -- 3. Tam veriyi oluştur
   SELECT jsonb_build_object(
     'id', r.id,
     'pnr', r.pnr,
@@ -373,7 +420,7 @@ BEGIN
   )
   INTO v_result
   FROM public.reservations r
-  WHERE r.pnr = UPPER(p_pnr);
+  WHERE r.id = v_reservation_id;
 
   RETURN v_result;
 END;
@@ -393,6 +440,150 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
+-- =============================================
+-- ATOMİK REZERVASYON OLUŞTURMA
+-- Tek transaction içinde: kapasite kontrolü → reservations INSERT →
+-- passengers INSERT → booked_seats artırma.
+-- Herhangi bir adımda hata → tüm işlem otomatik ROLLBACK (plpgsql exception).
+--
+-- Parametreler:
+--   p_flight_id      INT            — flights.id
+--   p_pnr            TEXT           — ön-üretilmiş PNR (frontend generatePNR())
+--   p_user_id        UUID           — auth.uid() veya NULL (misafir)
+--   p_flight_number  TEXT           — görüntüleme için (ör. BEY101)
+--   p_route          TEXT           — görüntüleme için (ör. İstanbul → Dubai)
+--   p_flight_date    DATE
+--   p_flight_time    TIME
+--   p_flight_class   TEXT
+--   p_total_price    DECIMAL        — frontend'in hesapladığı fiyat
+--   p_contact_email  TEXT
+--   p_contact_phone  TEXT
+--   p_extra_services JSONB          — ek hizmetler (bagaj, yemek vb.)
+--   p_payment_method TEXT
+--   p_payment_card_last4 TEXT
+--   p_booking_token  UUID           — idempotency token; aynı token ile ikinci
+--                                    çağrı unique violation → duplicate engellenir
+--   p_passengers     JSONB          — yolcu array'i, her eleman:
+--                                    { first_name, last_name, tc_no, birth_date,
+--                                      gender, seat_number, passenger_type }
+--
+-- Dönüş: JSONB { success: bool, pnr: text | null, error: text | null }
+--
+-- Güvenlik notları:
+--   - Fiyat doğrulaması: p_total_price flights.price × yolcu sayısından
+--     %20'den fazla sapıyorsa reddedilir (fiyat manipülasyon koruması).
+--   - Kapasite kontrolü: booked_seats + yolcu sayısı > capacity ise reddedilir.
+--   - booking_token UNIQUE constraint sayesinde idempotent — ağ tekrarı güvenli.
+-- =============================================
+CREATE OR REPLACE FUNCTION create_reservation(
+  p_flight_id          INT,
+  p_pnr                TEXT,
+  p_user_id            UUID,
+  p_flight_number      TEXT,
+  p_route              TEXT,
+  p_flight_date        DATE,
+  p_flight_time        TIME,
+  p_flight_class       TEXT,
+  p_total_price        DECIMAL,
+  p_contact_email      TEXT,
+  p_contact_phone      TEXT,
+  p_extra_services     JSONB    DEFAULT '{}',
+  p_payment_method     TEXT    DEFAULT NULL,
+  p_payment_card_last4 TEXT    DEFAULT NULL,
+  p_booking_token      UUID    DEFAULT NULL,
+  p_passengers         JSONB   DEFAULT '[]'
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_flight         RECORD;
+  v_reservation_id UUID;
+  v_passenger      JSONB;
+  v_passenger_count INT;
+  v_expected_price  DECIMAL;
+BEGIN
+  -- 1. Uçuşu kilitle (FOR UPDATE — eşzamanlı rezervasyonlarda race condition engelle)
+  SELECT id, price, capacity, booked_seats, flight_class
+  INTO v_flight
+  FROM public.flights
+  WHERE id = p_flight_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'pnr', NULL, 'error', 'Uçuş bulunamadı');
+  END IF;
+
+  -- 2. Yolcu sayısı
+  v_passenger_count := jsonb_array_length(p_passengers);
+  IF v_passenger_count = 0 THEN
+    RETURN jsonb_build_object('success', false, 'pnr', NULL, 'error', 'En az bir yolcu gereklidir');
+  END IF;
+
+  -- 3. Kapasite kontrolü
+  IF v_flight.booked_seats + v_passenger_count > v_flight.capacity THEN
+    RETURN jsonb_build_object('success', false, 'pnr', NULL, 'error', 'Yeterli koltuk kapasitesi yok');
+  END IF;
+
+  -- 4. Fiyat doğrulaması — frontend fiyatı DB fiyatından %20'den fazla düşükse reddet
+  --    (fiyat manipülasyon koruması; %20 tolerans kampanya/indirim için bırakılmış)
+  v_expected_price := v_flight.price * v_passenger_count;
+  IF p_total_price < v_expected_price * 0.80 THEN
+    RETURN jsonb_build_object('success', false, 'pnr', NULL,
+      'error', 'Geçersiz fiyat: Beklenen minimum ' || (v_expected_price * 0.80)::TEXT);
+  END IF;
+
+  -- 5. Rezervasyon oluştur
+  INSERT INTO public.reservations (
+    pnr, user_id, flight_id, flight_number, route,
+    flight_date, flight_time, status, total_price, flight_class,
+    contact_email, contact_phone, extra_services,
+    payment_method, payment_card_last4, booking_token
+  ) VALUES (
+    UPPER(TRIM(p_pnr)), p_user_id, p_flight_id, p_flight_number, p_route,
+    p_flight_date, p_flight_time, 'Onaylandı', p_total_price, p_flight_class,
+    p_contact_email, p_contact_phone, p_extra_services,
+    p_payment_method, p_payment_card_last4, p_booking_token
+  )
+  RETURNING id INTO v_reservation_id;
+
+  -- 6. Yolcuları ekle
+  FOR v_passenger IN SELECT * FROM jsonb_array_elements(p_passengers)
+  LOOP
+    INSERT INTO public.passengers (
+      reservation_id, flight_id,
+      first_name, last_name, tc_no, birth_date,
+      gender, seat_number, passenger_type
+    ) VALUES (
+      v_reservation_id, p_flight_id,
+      v_passenger->>'first_name',
+      v_passenger->>'last_name',
+      v_passenger->>'tc_no',
+      NULLIF(v_passenger->>'birth_date', '')::DATE,
+      v_passenger->>'gender',
+      NULLIF(v_passenger->>'seat_number', ''),
+      COALESCE(NULLIF(v_passenger->>'passenger_type', ''), 'Yetişkin')
+    );
+    -- NOT: seat_number çakışması burada idx_unique_seat_per_flight tarafından
+    -- yakalanır ve exception fırlatır → tüm transaction ROLLBACK olur.
+  END LOOP;
+
+  -- 7. Koltuk sayacını artır
+  UPDATE public.flights
+  SET booked_seats = booked_seats + v_passenger_count
+  WHERE id = p_flight_id;
+
+  RETURN jsonb_build_object('success', true, 'pnr', UPPER(TRIM(p_pnr)), 'error', NULL);
+
+EXCEPTION
+  WHEN unique_violation THEN
+    -- booking_token veya seat çakışması
+    RETURN jsonb_build_object('success', false, 'pnr', NULL,
+      'error', 'Bu rezervasyon zaten oluşturulmuş veya seçilen koltuk alındı');
+  WHEN OTHERS THEN
+    RETURN jsonb_build_object('success', false, 'pnr', NULL,
+      'error', SQLERRM);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
 -- HAFTALIK UÇUŞ ÜRETİCİ FONKSİYON
 -- Gün bazlı üretim: her schedule sadece kendi gününde uçuş oluşturur
 -- flight_number = flight_code (BEY101, BEY201...) — her hafta aynı kod
@@ -406,17 +597,16 @@ DECLARE
   current_date_iter DATE;
   current_dow INT;  -- 1=Pazartesi, 7=Pazar (ISO)
   sched RECORD;
-  ac_capacity INT;
+  next_seq INT;
+  new_flight_number VARCHAR(20);
 BEGIN
   -- GÜVENLİK: Sadece admin veya service_role çağırabilir
-  -- service_role: auth.uid() = NULL (Edge Function/cron ortamı)
   IF auth.uid() IS NOT NULL AND NOT is_admin() THEN
     RAISE EXCEPTION 'Yetkisiz erişim: generate_weekly_flights sadece admin tarafından çağrılabilir';
   END IF;
 
   FOR i IN 0..(num_weeks * 7 - 1) LOOP
     current_date_iter := start_date + i;
-    -- PostgreSQL ISODOW: 1=Pazartesi, 7=Pazar
     current_dow := EXTRACT(ISODOW FROM current_date_iter);
 
     FOR sched IN
@@ -425,6 +615,23 @@ BEGIN
       JOIN aircraft a ON a.id = fs.aircraft_id
       WHERE fs.is_active = true AND fs.day_of_week = current_dow
     LOOP
+      -- Bu tarihte aynı schedule'dan uçuş var mı kontrol et
+      IF EXISTS (
+        SELECT 1 FROM flights
+        WHERE schedule_id = sched.id AND flight_date = current_date_iter
+      ) THEN
+        CONTINUE;
+      END IF;
+
+      -- BEY101-N formatında sıradaki numarayı bul
+      SELECT COALESCE(MAX(
+        (regexp_match(flight_number, '^' || sched.flight_code || '-(\d+)$'))[1]::int
+      ), 0) + 1 INTO next_seq
+      FROM flights
+      WHERE flight_number ~ ('^' || sched.flight_code || '-\d+$');
+
+      new_flight_number := sched.flight_code || '-' || next_seq;
+
       INSERT INTO flights (
         flight_number, schedule_id, aircraft_id, flight_date,
         from_code, from_city, to_code, to_city,
@@ -433,7 +640,7 @@ BEGIN
         status, gate, terminal, estimated_departure, estimated_arrival,
         capacity
       ) VALUES (
-        sched.flight_code, sched.id, sched.aircraft_id, current_date_iter,
+        new_flight_number, sched.id, sched.aircraft_id, current_date_iter,
         sched.from_code, sched.from_city, sched.to_code, sched.to_city,
         sched.departure_time, sched.arrival_time, sched.duration,
         sched.flight_class, sched.price, sched.baggage, sched.meal, sched.changeable,
@@ -442,11 +649,11 @@ BEGIN
           WHEN 0 THEN 'A3' WHEN 1 THEN 'A12' WHEN 2 THEN 'B8'
           WHEN 3 THEN 'C5' WHEN 4 THEN 'D14' WHEN 5 THEN 'B3'
         END,
-        CASE WHEN sched.flight_class = 'vip' THEN 'VIP' ELSE '1' END,
+        CASE WHEN sched.flight_class = 'vip' THEN 'VIP' ELSE 'T1' END,
         sched.departure_time,
         sched.arrival_time,
         sched.aircraft_capacity
-      ) ON CONFLICT (flight_number, flight_date) DO NOTHING;
+      );
     END LOOP;
   END LOOP;
 END;
@@ -470,7 +677,7 @@ BEGIN
   UPDATE flight_schedule SET price = p_new_price WHERE flight_code = p_flight_code;
   -- Gelecek tarihli uçuşların fiyatını güncelle (rezervasyonlu olanlar dahil — bilet fiyatı sabit kalır)
   UPDATE flights SET price = p_new_price
-  WHERE flight_number = p_flight_code AND flight_date >= CURRENT_DATE;
+  WHERE flight_number LIKE p_flight_code || '-%' AND flight_date >= CURRENT_DATE;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
@@ -478,27 +685,27 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 -- SEED DATA
 -- =============================================
 
--- FİLO (4 araç: 3 normal + 1 VIP jet)
+-- FİLO (4 araç: 3 premium + 1 VIP jet)
 INSERT INTO aircraft (id, registration, model, capacity, aircraft_type) VALUES
-(1, 'TC-BEY01', 'Boeing 737-800',         180, 'normal'),
-(2, 'TC-BEY02', 'Boeing 737-800',         180, 'normal'),
-(3, 'TC-BEY03', 'Boeing 737-800',         180, 'normal'),
+(1, 'TC-BEY01', 'Boeing 737-800',         180, 'premium'),
+(2, 'TC-BEY02', 'Boeing 737-800',         180, 'premium'),
+(3, 'TC-BEY03', 'Boeing 737-800',         180, 'premium'),
 (4, 'TC-BEY04', 'Bombardier Global 7500',  24, 'vip')
 ON CONFLICT (registration) DO NOTHING;
 
 -- Haftalık Uçuş Programı (8 slot — filo bazlı, çakışma yok)
--- Normal uçuşlar (3 uçak rotasyonu):
+-- Premium uçuşlar (3 uçak rotasyonu):
 --   Uçak-1 (TC-BEY01): Pzt IST→DXB, Çar DXB→IST
 --   Uçak-2 (TC-BEY02): Sal ANK→DXB, Per DXB→ANK
 --   Uçak-3 (TC-BEY03): Cum IZM→DXB, Paz DXB→IZM
 -- VIP jet (TC-BEY04): Pzt IST→DXB VIP, Çar DXB→IST VIP
 INSERT INTO flight_schedule (flight_code, aircraft_id, from_code, from_city, to_code, to_city, day_of_week, departure_time, arrival_time, duration, flight_class, price, baggage, meal, changeable) VALUES
-('BEY101', 1, 'IST', 'İstanbul', 'DXB', 'Dubai',    1, '09:00', '13:30', '4s 30dk', 'normal', 3499, true, true, true),
-('BEY102', 1, 'DXB', 'Dubai',    'IST', 'İstanbul', 3, '09:00', '13:30', '4s 30dk', 'normal', 3499, true, true, true),
-('BEY103', 2, 'ESB', 'Ankara',   'DXB', 'Dubai',    2, '08:00', '12:45', '4s 45dk', 'normal', 3699, true, true, true),
-('BEY104', 2, 'DXB', 'Dubai',    'ESB', 'Ankara',   4, '09:00', '13:45', '4s 45dk', 'normal', 3699, true, true, true),
-('BEY105', 3, 'ADB', 'İzmir',    'DXB', 'Dubai',    5, '10:00', '14:40', '4s 40dk', 'normal', 3599, true, true, true),
-('BEY106', 3, 'DXB', 'Dubai',    'ADB', 'İzmir',    7, '10:00', '14:40', '4s 40dk', 'normal', 3599, true, true, true),
+('BEY101', 1, 'IST', 'İstanbul', 'DXB', 'Dubai',    1, '09:00', '13:30', '4s 30dk', 'premium', 3499, true, true, true),
+('BEY102', 1, 'DXB', 'Dubai',    'IST', 'İstanbul', 3, '09:00', '13:30', '4s 30dk', 'premium', 3499, true, true, true),
+('BEY103', 2, 'ESB', 'Ankara',   'DXB', 'Dubai',    2, '08:00', '12:45', '4s 45dk', 'premium', 3699, true, true, true),
+('BEY104', 2, 'DXB', 'Dubai',    'ESB', 'Ankara',   4, '09:00', '13:45', '4s 45dk', 'premium', 3699, true, true, true),
+('BEY105', 3, 'ADB', 'İzmir',    'DXB', 'Dubai',    5, '10:00', '14:40', '4s 40dk', 'premium', 3599, true, true, true),
+('BEY106', 3, 'DXB', 'Dubai',    'ADB', 'İzmir',    7, '10:00', '14:40', '4s 40dk', 'premium', 3599, true, true, true),
 ('BEY201', 4, 'IST', 'İstanbul', 'DXB', 'Dubai',    1, '14:00', '18:30', '4s 30dk', 'vip',    7999, true, true, true),
 ('BEY202', 4, 'DXB', 'Dubai',    'IST', 'İstanbul', 3, '14:00', '18:30', '4s 30dk', 'vip',    7999, true, true, true)
 ON CONFLICT (flight_code) DO NOTHING;
@@ -539,8 +746,8 @@ INSERT INTO destinations (city, slug, country, image, hero_image, price, descrip
 
 -- Campaigns
 INSERT INTO campaigns (title, slug, description, long_description, badge, type, image, benefits, terms, routes) VALUES
-('Dubai Uçuş Ağı', 'dubai-ucus-agi', 'Türkiye''nin 3 büyük şehrinden Dubai''ye direkt uçuşlar', 'İstanbul, Ankara ve İzmir''den Dubai''ye her gün direkt uçuş imkanı. Normal ve VIP sınıf seçenekleriyle konforlu seyahat deneyimi.', 'Yeni', 'featured', '/images/campaigns/dubai-network.webp',
- '["İstanbul, Ankara, İzmir''den direkt uçuşlar", "Normal ve VIP sınıf seçenekleri", "Günlük düzenli seferler", "Online check-in kolaylığı"]',
+('Dubai Uçuş Ağı', 'dubai-ucus-agi', 'Türkiye''nin 3 büyük şehrinden Dubai''ye direkt uçuşlar', 'İstanbul, Ankara ve İzmir''den Dubai''ye her gün direkt uçuş imkanı. Premium ve VIP sınıf seçenekleriyle konforlu seyahat deneyimi.', 'Yeni', 'featured', '/images/campaigns/dubai-network.webp',
+ '["İstanbul, Ankara, İzmir''den direkt uçuşlar", "Premium ve VIP sınıf seçenekleri", "Günlük düzenli seferler", "Online check-in kolaylığı"]',
  '["Kampanya tüm rotalarda geçerlidir", "Koltuk müsaitliğine bağlıdır"]',
  '["İstanbul ↔ Dubai", "Ankara ↔ Dubai", "İzmir ↔ Dubai"]'
 ),
@@ -653,6 +860,26 @@ BEGIN
   RETURN result;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+-- =============================================
+-- TOPLAM GELİR HESABI
+-- Client-side reduce yerine tek aggregate sorgu ile hesaplanır.
+-- SECURITY DEFINER: reservations tablosunu RLS bypass ile okur.
+-- GÜVENLİK: Admin kontrolü çağıran tarafta (useAdminStats) yapılır.
+-- =============================================
+CREATE OR REPLACE FUNCTION get_total_revenue()
+RETURNS NUMERIC
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT COALESCE(SUM(total_price), 0) FROM reservations;
+$$;
+
+GRANT EXECUTE ON FUNCTION get_total_revenue() TO authenticated;
+GRANT EXECUTE ON FUNCTION get_total_revenue() TO anon;
+GRANT EXECUTE ON FUNCTION generate_weekly_flights(DATE, INT) TO anon;
+GRANT EXECUTE ON FUNCTION generate_weekly_flights(DATE, INT) TO authenticated;
 
 -- =============================================
 -- GÜVENLİ REZERVASYON İPTAL FONKSİYONU

@@ -459,14 +459,24 @@ const SeatSelectionPage = () => {
                   </div>
                 )}
 
-                <button
-                  type="button"
-                  onClick={handleContinue}
-                  className="w-full py-4 bg-gradient-to-r from-primary to-secondary hover:from-primary-dark hover:to-primary text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-[0.98]"
-                >
-                  <span>Ek Hizmetlere Geç</span>
-                  <i className="ri-arrow-right-line text-lg"></i>
-                </button>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => navigate(-1)}
+                    className="flex-1 py-4 border-2 border-gray-200 text-gray-700 rounded-xl font-semibold hover:border-red-600 hover:text-red-600 transition-all flex items-center justify-center gap-2"
+                  >
+                    <i className="ri-arrow-left-line"></i>
+                    Geri
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleContinue}
+                    className="flex-1 py-4 bg-gradient-to-r from-primary to-secondary hover:from-primary-dark hover:to-primary text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-[0.98]"
+                  >
+                    <span>Ek Hizmetlere Geç</span>
+                    <i className="ri-arrow-right-line text-lg"></i>
+                  </button>
+                </div>
 
                 <div className="mt-6 p-4 bg-blue-50 rounded-xl">
                   <div className="flex items-start space-x-2">

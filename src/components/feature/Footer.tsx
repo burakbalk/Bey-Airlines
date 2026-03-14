@@ -35,8 +35,8 @@ export default function Footer() {
             <div>
               <Link to="/" className="flex items-center gap-2 mb-5 group">
                 <img src="/logo.png" alt="Bey Airlines" className="h-11 w-11 object-contain brightness-0 invert group-hover:brightness-100 transition-all duration-300" />
-                <span className="text-[1.4rem] font-playfair font-bold italic uppercase tracking-[0.12em] text-white leading-none">
-                  Bey <span className="text-red-400">Airlines</span>
+                <span className="text-[1.4rem] font-sans font-bold tracking-widest uppercase text-white leading-none">
+                  BEY <span className="text-red-400">AIRLINES</span>
                 </span>
               </Link>
               <p className="text-gray-500 leading-relaxed text-sm mb-6">

@@ -128,6 +128,31 @@ export default function AdminCustomersPage() {
     currentPage * ITEMS_PER_PAGE
   );
 
+  const handleRoleChange = async (customer: CustomerDisplay) => {
+    const newRole = customer.role === 'admin' ? 'user' : 'admin';
+    const confirmed = window.confirm(
+      `"${customer.name}" kullanıcısının rolü ${newRole === 'admin' ? 'Admin' : 'Kullanıcı'} yapılsın mı?`
+    );
+    if (!confirmed) return;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ role: newRole })
+      .eq('id', customer.id);
+
+    if (error) {
+      alert('Rol güncellenemedi: ' + error.message);
+      return;
+    }
+
+    setCustomers(prev =>
+      prev.map(c => c.id === customer.id ? { ...c, role: newRole } : c)
+    );
+    if (selectedCustomer?.id === customer.id) {
+      setSelectedCustomer(prev => prev ? { ...prev, role: newRole } : null);
+    }
+  };
+
   const handleViewDetail = async (customer: CustomerDisplay) => {
     setSelectedCustomer(customer);
     setShowDetailModal(true);
@@ -281,6 +306,17 @@ export default function AdminCustomersPage() {
                           >
                             <i className="ri-eye-line text-sm"></i>
                           </button>
+                          <button
+                            onClick={() => handleRoleChange(customer)}
+                            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors cursor-pointer ${
+                              customer.role === 'admin'
+                                ? 'bg-green-100 hover:bg-green-200 text-green-700'
+                                : 'bg-red-100 hover:bg-red-200 text-red-700'
+                            }`}
+                            title={customer.role === 'admin' ? 'Kullanıcıya Düşür' : 'Admin Yap'}
+                          >
+                            <i className={`text-sm ${customer.role === 'admin' ? 'ri-user-line' : 'ri-shield-user-line'}`}></i>
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -374,7 +410,6 @@ export default function AdminCustomersPage() {
                   {[
                     { label: 'Kayıt Tarihi', value: selectedCustomer.registrationDate },
                     { label: 'Toplam Rezervasyon', value: selectedCustomer.totalReservations },
-                    { label: 'Rol', value: selectedCustomer.role === 'admin' ? 'Admin' : 'Kullanıcı' },
                     { label: 'Telefon', value: selectedCustomer.phone },
                   ].map((item, idx) => (
                     <div key={idx}>
@@ -382,6 +417,18 @@ export default function AdminCustomersPage() {
                       <p className="text-lg font-bold">{item.value}</p>
                     </div>
                   ))}
+                  <div>
+                    <p className="text-red-200 text-xs mb-1">Rol</p>
+                    <button
+                      onClick={() => handleRoleChange(selectedCustomer)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg transition-colors cursor-pointer text-sm font-semibold"
+                      title={selectedCustomer.role === 'admin' ? 'Kullanıcıya Düşür' : 'Admin Yap'}
+                    >
+                      <i className={selectedCustomer.role === 'admin' ? 'ri-shield-user-fill' : 'ri-user-fill'}></i>
+                      {selectedCustomer.role === 'admin' ? 'Admin' : 'Kullanıcı'}
+                      <i className="ri-arrow-left-right-line text-xs opacity-70"></i>
+                    </button>
+                  </div>
                 </div>
               </div>
 

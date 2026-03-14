@@ -1,4 +1,6 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { getTodayTR } from '../../../utils/date';
+import { formatDateTR } from '../../../components/feature/SearchForm';
 
 interface FlightCardProps {
   flight: {
@@ -13,6 +15,8 @@ interface FlightCardProps {
     baggage: boolean;
     meal: boolean;
     changeable: boolean;
+    availableSeats?: number;
+    date?: string;
   };
 }
 
@@ -20,11 +24,13 @@ export default function FlightCard({ flight }: FlightCardProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isVip = flight.flightClass === 'vip';
+  const isFull = flight.availableSeats !== undefined && flight.availableSeats <= 0;
+  const isAlmostFull = flight.availableSeats !== undefined && flight.availableSeats > 0 && flight.availableSeats <= 5;
 
   const handleSelectFlight = () => {
     const from = searchParams.get('from') || flight.departure.city;
     const to = searchParams.get('to') || flight.arrival.city;
-    const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
+    const date = searchParams.get('date') || getTodayTR();
 
     navigate(
       `/ucus-rezervasyon?flightId=${flight.id}` +
@@ -65,7 +71,7 @@ export default function FlightCard({ flight }: FlightCardProps) {
             </div>
             <div>
               <p className="text-xs font-bold text-gray-700 leading-none">Bey Airlines</p>
-              <p className="text-[10px] text-gray-400 mt-0.5">{flight.flightNumber}</p>
+              <p className="text-[10px] text-gray-400 mt-0.5">{flight.flightNumber}{flight.date ? ` · ${formatDateTR(flight.date)}` : ''}</p>
             </div>
           </div>
 
@@ -80,7 +86,7 @@ export default function FlightCard({ flight }: FlightCardProps) {
             </span>
             {!isVip && (
               <span className="text-xs text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full font-medium">
-                Ekonomi
+                Premium
               </span>
             )}
           </div>
@@ -158,18 +164,33 @@ export default function FlightCard({ flight }: FlightCardProps) {
               <p className={`text-2xl font-extrabold leading-none ${isVip ? 'text-amber-600' : 'text-primary'}`}>
                 {flight.price.toLocaleString('tr-TR')} ₺
               </p>
+              {isAlmostFull && (
+                <p className="text-[10px] text-amber-600 font-semibold mt-0.5">
+                  Son {flight.availableSeats} koltuk!
+                </p>
+              )}
+              {isFull && (
+                <p className="text-[10px] text-red-600 font-semibold mt-0.5">Dolu</p>
+              )}
             </div>
-            <button
-              onClick={handleSelectFlight}
-              className={`flex-shrink-0 font-bold py-3 px-6 rounded-xl transition-all cursor-pointer text-sm flex items-center gap-2 shadow-sm hover:shadow-md active:scale-[0.97] ${
-                isVip
-                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white'
-                  : 'bg-gradient-to-r from-primary to-secondary hover:from-primary-dark hover:to-primary text-white'
-              }`}
-            >
-              Seç
-              <i className="ri-arrow-right-line text-sm"></i>
-            </button>
+            {isFull ? (
+              <div className="flex-shrink-0 font-bold py-3 px-6 rounded-xl text-sm flex items-center gap-2 bg-gray-200 text-gray-400 cursor-not-allowed">
+                <i className="ri-close-circle-line text-sm"></i>
+                Dolu
+              </div>
+            ) : (
+              <button
+                onClick={handleSelectFlight}
+                className={`flex-shrink-0 font-bold py-3 px-6 rounded-xl transition-all cursor-pointer text-sm flex items-center gap-2 shadow-sm hover:shadow-md active:scale-[0.97] ${
+                  isVip
+                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white'
+                    : 'bg-gradient-to-r from-primary to-secondary hover:from-primary-dark hover:to-primary text-white'
+                }`}
+              >
+                Seç
+                <i className="ri-arrow-right-line text-sm"></i>
+              </button>
+            )}
           </div>
         </div>
       </div>

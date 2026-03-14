@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import AdminLayout from '../../../components/admin/AdminLayout';
 import { LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { supabase } from '../../../lib/supabase';
+import { getTodayTR } from '../../../utils/date';
 
 interface MonthlyRevenue {
   month: string;
@@ -27,8 +28,8 @@ interface WeeklySales {
 
 export default function AdminReportsPage() {
   const [dateRange, setDateRange] = useState({
-    start: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0],
-    end: new Date().toISOString().split('T')[0],
+    start: new Date(new Date().getFullYear(), 0, 1).toLocaleDateString('sv-SE', { timeZone: 'Europe/Istanbul' }),
+    end: getTodayTR(),
   });
 
   const [activeTab, setActiveTab] = useState<'revenue' | 'occupancy' | 'sales'>('revenue');

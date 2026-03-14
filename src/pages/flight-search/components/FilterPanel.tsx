@@ -1,4 +1,3 @@
-import { useState } from 'react';
 
 export interface FlightFilters {
   directOnly: boolean;
@@ -9,34 +8,23 @@ export interface FlightFilters {
 }
 
 interface FilterPanelProps {
+  filters: FlightFilters;
   onFilterChange: (filters: FlightFilters) => void;
 }
 
-export default function FilterPanel({ onFilterChange }: FilterPanelProps) {
-  const [filters, setFilters] = useState<FlightFilters>({
-    directOnly: false,
-    departureTime: 'all',
-    maxPrice: 10000,
-    includeBaggage: false,
-    flightClass: 'all',
-  });
-
+export default function FilterPanel({ filters, onFilterChange }: FilterPanelProps) {
   const handleFilterChange = (key: keyof FlightFilters, value: string | number | boolean) => {
-    const newFilters = { ...filters, [key]: value };
-    setFilters(newFilters);
-    onFilterChange(newFilters);
+    onFilterChange({ ...filters, [key]: value });
   };
 
   const clearFilters = () => {
-    const defaultFilters = {
+    onFilterChange({
       directOnly: false,
       departureTime: 'all',
-      maxPrice: 10000,
+      maxPrice: 100000,
       includeBaggage: false,
       flightClass: 'all',
-    };
-    setFilters(defaultFilters);
-    onFilterChange(defaultFilters);
+    });
   };
 
   return (
@@ -55,7 +43,7 @@ export default function FilterPanel({ onFilterChange }: FilterPanelProps) {
           <div className="flex gap-2">
             {[
               { value: 'all', label: 'Tümü' },
-              { value: 'normal', label: 'Normal' },
+              { value: 'premium', label: 'Premium' },
               { value: 'vip', label: '✦ VIP' },
             ].map((opt) => (
               <button
@@ -126,8 +114,8 @@ export default function FilterPanel({ onFilterChange }: FilterPanelProps) {
           <input
             type="range"
             min="0"
-            max="10000"
-            step="100"
+            max="100000"
+            step="1000"
             value={filters.maxPrice}
             onChange={(e) => handleFilterChange('maxPrice', parseInt(e.target.value))}
             className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary"

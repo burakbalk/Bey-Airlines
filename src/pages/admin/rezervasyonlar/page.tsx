@@ -7,7 +7,7 @@ const ITEMS_PER_PAGE = 20;
 export default function AdminReservationsPage() {
   const { reservations, loading, updateStatus } = useAdminReservations();
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'Tümü' | 'Onaylandı' | 'Beklemede' | 'İptal'>('Tümü');
+  const [statusFilter, setStatusFilter] = useState<'Tümü' | 'Onaylandı' | 'Beklemede' | 'İptal Edildi'>('Tümü');
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -29,7 +29,7 @@ export default function AdminReservationsPage() {
     currentPage * ITEMS_PER_PAGE
   );
 
-  const handleStatusChange = async (id: string, newStatus: 'Onaylandı' | 'İptal') => {
+  const handleStatusChange = async (id: string, newStatus: 'Onaylandı' | 'İptal Edildi') => {
     await updateStatus(id, newStatus);
     setShowConfirmModal(false);
     setConfirmAction(null);
@@ -46,7 +46,7 @@ export default function AdminReservationsPage() {
         return 'bg-green-100 text-green-800';
       case 'Beklemede':
         return 'bg-amber-100 text-amber-800';
-      case 'İptal':
+      case 'İptal Edildi':
         return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
@@ -57,7 +57,7 @@ export default function AdminReservationsPage() {
     total: reservations.length,
     confirmed: reservations.filter((r) => r.status === 'Onaylandı').length,
     pending: reservations.filter((r) => r.status === 'Beklemede').length,
-    cancelled: reservations.filter((r) => r.status === 'İptal').length,
+    cancelled: reservations.filter((r) => r.status === 'İptal Edildi').length,
   };
 
   if (loading) {
@@ -87,7 +87,7 @@ export default function AdminReservationsPage() {
               { label: 'Toplam Rezervasyon', value: stats.total, icon: 'file-list-3-line', color: 'bg-blue-100 text-blue-600' },
               { label: 'Onaylandı', value: stats.confirmed, icon: 'checkbox-circle-line', color: 'bg-green-100 text-green-600' },
               { label: 'Beklemede', value: stats.pending, icon: 'time-line', color: 'bg-amber-100 text-amber-600' },
-              { label: 'İptal', value: stats.cancelled, icon: 'close-circle-line', color: 'bg-red-100 text-red-600' },
+              { label: 'İptal Edildi', value: stats.cancelled, icon: 'close-circle-line', color: 'bg-red-100 text-red-600' },
             ].map((stat, idx) => (
               <div key={idx} className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
                 <div className="flex items-center justify-between">
@@ -119,7 +119,7 @@ export default function AdminReservationsPage() {
                 </div>
               </div>
               <div className="flex gap-2">
-                {(['Tümü', 'Onaylandı', 'Beklemede', 'İptal'] as const).map((status) => (
+                {(['Tümü', 'Onaylandı', 'Beklemede', 'İptal Edildi'] as const).map((status) => (
                   <button
                     key={status}
                     onClick={() => { setStatusFilter(status); setCurrentPage(1); }}
@@ -416,7 +416,7 @@ export default function AdminReservationsPage() {
                   Vazgeç
                 </button>
                 <button
-                  onClick={() => handleStatusChange(confirmAction.id, confirmAction.type === 'approve' ? 'Onaylandı' : 'İptal')}
+                  onClick={() => handleStatusChange(confirmAction.id, confirmAction.type === 'approve' ? 'Onaylandı' : 'İptal Edildi')}
                   className={`flex-1 py-3 ${confirmAction.type === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'} text-white rounded-xl transition-colors font-medium whitespace-nowrap cursor-pointer`}
                 >
                   {confirmAction.type === 'approve' ? 'Onayla' : 'İptal Et'}

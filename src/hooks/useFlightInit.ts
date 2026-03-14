@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { logger } from '../utils/logger';
+import { getTodayTR } from '../utils/date';
 
 /**
  * App başlatıldığında gelecek uçuş sayısını kontrol eder.
@@ -16,12 +17,11 @@ export function useFlightInit() {
 
     (async () => {
       try {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getTodayTR();
 
-        // sessionStorage flag: aynı gün içinde tekrar Supabase sorgusu yapma
+        // sessionStorage flag: aynı gün içinde başarılı init sonrası tekrar çalışma
         const flagKey = `flightInitDone_${today}`;
         if (sessionStorage.getItem(flagKey)) return;
-        sessionStorage.setItem(flagKey, '1');
 
         const { count, error } = await supabase
           .from('flights')
@@ -41,8 +41,13 @@ export function useFlightInit() {
           });
           if (rpcError) {
             logger.error('generate_weekly_flights hatası:', rpcError.message);
+            // RPC başarısız: flag set etme, bir sonraki yüklemede tekrar denensin
+            return;
           }
         }
+
+        // Uçuşlar yeterliyse veya RPC başarılıysa flag set et
+        sessionStorage.setItem(flagKey, '1');
       } catch (err) {
         logger.error('Flight init hatası:', err);
       }

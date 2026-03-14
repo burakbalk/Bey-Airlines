@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { getTodayTR } from '../../utils/date';
 
 export const CITIES = [
   { code: 'IST', name: 'İstanbul', country: 'Türkiye' },
@@ -109,7 +110,8 @@ export function PortalDropdown({
         <div className="fixed inset-0 bg-black/50 z-[9998]" onClick={onClose} />
         <div
           ref={dropdownRef}
-          className="fixed bottom-0 left-0 right-0 z-[9999] rounded-t-2xl shadow-2xl bg-gray-900/98 max-h-[60vh] overflow-y-auto animate-fade-up"
+          className="fixed bottom-0 left-0 right-0 z-[9999] rounded-t-2xl shadow-2xl max-h-[60vh] overflow-y-auto opacity-100"
+          style={{ backgroundColor: '#5a0000', isolation: 'isolate' }}
         >
           <div className="flex justify-center pt-3 pb-1">
             <div className="w-10 h-1 bg-white/20 rounded-full" />
@@ -124,7 +126,7 @@ export function PortalDropdown({
   return createPortal(
     <div
       ref={dropdownRef}
-      className="fixed rounded-xl shadow-2xl shadow-black/50 border border-white/[0.15] bg-gray-900/98 backdrop-blur-sm"
+      className="fixed rounded-xl shadow-2xl border border-red-900/40"
       style={{
         top: pos.top,
         left: pos.left,
@@ -132,6 +134,8 @@ export function PortalDropdown({
         zIndex: 9999,
         opacity: pos.visible ? 1 : 0,
         pointerEvents: pos.visible ? 'auto' : 'none',
+        backgroundColor: '#5a0000',
+        isolation: 'isolate',
       }}
     >
       {children}
@@ -174,7 +178,7 @@ export function CityDropdown({
         <div className="flex items-center gap-2">
           <i className={`${icon} text-lg ${iconColor}`}></i>
           <div className="flex-1 min-w-0">
-            <span className="text-white text-base font-semibold block truncate">{value}</span>
+            <span className="text-white text-sm font-semibold block truncate">{value}</span>
           </div>
           <span className="text-white/20 text-xs font-medium">{selected?.code}</span>
           <i className={`ri-arrow-down-s-line text-white/30 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}></i>
@@ -188,23 +192,23 @@ export function CityDropdown({
               key={city.code}
               type="button"
               onClick={() => { onChange(city.name); setOpen(false); }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer ${
                 value === city.name
-                  ? 'bg-red-600/20 text-white'
-                  : 'text-white/70 hover:bg-white/[0.08] hover:text-white'
+                  ? 'bg-white text-red-700'
+                  : 'text-white hover:bg-white/10'
               }`}
             >
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
-                value === city.name ? 'bg-red-600 text-white' : 'bg-white/[0.08] text-white/50'
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
+                value === city.name ? 'bg-red-600 text-white' : 'bg-white/15 text-white'
               }`}>
                 {city.code}
               </div>
               <div className="flex-1 text-left">
                 <p className="text-sm font-semibold">{city.name}</p>
-                <p className="text-[10px] text-white/40">{city.country}</p>
+                <p className={`text-[10px] ${value === city.name ? 'text-red-400' : 'text-white/50'}`}>{city.country}</p>
               </div>
               {value === city.name && (
-                <i className="ri-check-line text-red-400"></i>
+                <i className="ri-check-line text-red-500 text-base"></i>
               )}
             </button>
           ))}
@@ -345,7 +349,7 @@ export function WeekPicker({
       <PortalDropdown open={open} onClose={() => setOpen(false)} triggerRef={triggerRef} width={360} align="center">
         <div className="p-4">
           <div className="flex items-center gap-2 mb-3">
-            <i className="ri-calendar-schedule-line text-red-400 text-sm"></i>
+            <i className="ri-calendar-schedule-line text-red-300 text-sm"></i>
             <span className="text-white/50 text-xs font-medium">
               Her {DAYS_FULL_TR[dayOfWeek]} uçuş var
             </span>
@@ -371,25 +375,25 @@ export function WeekPicker({
                   }}
                   className={`relative p-3 rounded-xl text-left transition-all cursor-pointer border ${
                     isSelected
-                      ? 'bg-red-600/20 border-red-500/50 ring-1 ring-red-500/30'
+                      ? 'bg-red-600/40 border-red-400/50 ring-1 ring-red-400/30'
                       : disabled
                         ? 'bg-white/[0.02] border-white/[0.04] opacity-40 cursor-not-allowed'
-                        : 'bg-white/[0.04] border-white/[0.08] hover:bg-white/[0.08] hover:border-white/[0.15]'
+                        : 'bg-white/[0.05] border-white/[0.08] hover:bg-white/[0.1] hover:border-white/[0.15]'
                   }`}
                 >
                   <p className={`text-xs font-medium mb-1 ${
-                    isSelected ? 'text-red-300' : 'text-white/40'
+                    isSelected ? 'text-red-200' : 'text-white/40'
                   }`}>
                     {formatWeekRange(week.weekStart, week.weekEnd)}
                   </p>
                   <p className={`text-sm font-semibold ${
-                    isSelected ? 'text-white' : disabled ? 'text-white/30' : 'text-white/80'
+                    isSelected ? 'text-white' : disabled ? 'text-white/25' : 'text-white/80'
                   }`}>
                     {DAYS_FULL_TR[dayOfWeek]} {week.flightDate.getDate()} {MONTHS_TR[week.flightDate.getMonth()]}
                   </p>
                   {isSelected && (
                     <div className="absolute top-2 right-2">
-                      <i className="ri-check-line text-red-400 text-sm"></i>
+                      <i className="ri-check-line text-red-300 text-sm"></i>
                     </div>
                   )}
                 </button>
@@ -413,20 +417,20 @@ export function PassengerSelector({
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   return (
-    <div className="relative">
+    <div className="relative flex-1 min-w-0">
       <button
         ref={triggerRef}
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full text-left px-4 py-3 cursor-pointer"
+        className="w-full h-full text-left px-3 py-3 cursor-pointer"
       >
         <label className="text-[10px] text-white/40 uppercase tracking-[0.15em] font-semibold mb-1 block pointer-events-none">
           Yolcu
         </label>
-        <div className="flex items-center gap-2">
-          <i className="ri-group-line text-lg text-white/40"></i>
-          <span className="text-white text-sm font-medium whitespace-nowrap">{value} Yolcu</span>
-          <i className={`ri-arrow-down-s-line text-white/30 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}></i>
+        <div className="flex items-center gap-1.5">
+          <i className="ri-group-line text-base text-white/40 shrink-0"></i>
+          <span className="text-white text-sm font-medium truncate">{value} Yolcu</span>
+          <i className={`ri-arrow-down-s-line text-white/30 transition-transform duration-200 shrink-0 ${open ? 'rotate-180' : ''}`}></i>
         </div>
       </button>
 
@@ -435,7 +439,7 @@ export function PassengerSelector({
           <div className="flex items-center justify-between mb-3">
             <div>
               <p className="text-white text-sm font-semibold">Yolcu Sayısı</p>
-              <p className="text-white/30 text-[10px]">Maksimum 9 yolcu</p>
+              <p className="text-white/40 text-[10px]">Maksimum 9 yolcu</p>
             </div>
           </div>
 
@@ -446,8 +450,8 @@ export function PassengerSelector({
               disabled={value <= 1}
               className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${
                 value <= 1
-                  ? 'bg-white/[0.04] text-white/10 cursor-not-allowed'
-                  : 'bg-white/[0.1] text-white hover:bg-white/[0.2]'
+                  ? 'bg-white/[0.04] text-white/15 cursor-not-allowed'
+                  : 'bg-white/10 text-white hover:bg-white/20'
               }`}
             >
               <i className="ri-subtract-line text-lg"></i>
@@ -462,8 +466,8 @@ export function PassengerSelector({
               disabled={value >= 9}
               className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${
                 value >= 9
-                  ? 'bg-white/[0.04] text-white/10 cursor-not-allowed'
-                  : 'bg-white/[0.1] text-white hover:bg-white/[0.2]'
+                  ? 'bg-white/[0.04] text-white/15 cursor-not-allowed'
+                  : 'bg-white/10 text-white hover:bg-white/20'
               }`}
             >
               <i className="ri-add-line text-lg"></i>
@@ -506,12 +510,12 @@ function getNextFlightDate(dayOfWeek: number): string {
 
 export function useSearchForm(initialData?: Partial<SearchFormData>) {
   const [tripType, setTripType] = useState<'round' | 'one-way'>('round');
-  const [flightClass, setFlightClass] = useState<'normal' | 'vip'>('normal');
+  const [flightClass, setFlightClass] = useState<'all' | 'premium' | 'vip'>('all');
   const [formData, setFormData] = useState<SearchFormData>(() => {
     const from = initialData?.from || 'İstanbul';
     const to = initialData?.to || 'Dubai';
     const departDay = getRouteDayOfWeek(from, to);
-    const defaultDepart = departDay ? getNextFlightDate(departDay) : new Date().toISOString().split('T')[0];
+    const defaultDepart = departDay ? getNextFlightDate(departDay) : getTodayTR();
     return {
       from,
       to,

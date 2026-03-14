@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { logger } from '../utils/logger';
+import { getTodayTR } from '../utils/date';
 
 interface DashboardStats {
   totalFlights: number;
@@ -45,7 +46,7 @@ export function useAdminStats() {
     const fetchStats = async () => {
       setError(null);
       try {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getTodayTR();
 
         const results = await Promise.all([
           supabase.from('flights').select('*', { count: 'exact', head: true }).gte('flight_date', today),
@@ -55,21 +56,15 @@ export function useAdminStats() {
           supabase.from('flights').select('*', { count: 'exact', head: true }).eq('flight_date', today),
           supabase.from('campaigns').select('*', { count: 'exact', head: true }).eq('is_active', true),
           supabase.from('reservations').select('id, pnr, route, flight_date, status, total_price, flight_class, created_at, contact_email').order('created_at', { ascending: false }).limit(10),
-          supabase.from('reservations').select('*', { count: 'exact', head: true }).in('status', ['cancelled', 'İptal']),
+          supabase.from('reservations').select('*', { count: 'exact', head: true }).in('status', ['İptal Edildi']),
         ]);
 
         if (!mountedRef.current) return;
 
-        const errors = results.filter(r => r.error).map(r => r.error!.message);
-        if (errors.length > 0) {
-          logger.error('[useAdminStats] Supabase hataları:', errors);
-          setError(errors[0]);
-        }
-
         const [
           { count: totalFlights },
           { count: totalReservations },
-          { data: revenueResult },
+          { data: revenueResult, error: revenueError },
           { count: totalPassengers },
           { count: todayFlights },
           { count: activeCampaigns },
@@ -77,7 +72,25 @@ export function useAdminStats() {
           { count: cancelledReservations },
         ] = results;
 
-        const totalRevenue = Number(revenueResult) || 0;
+        const nonRevenueErrors = results
+          .filter((r, i) => i !== 2 && r.error)
+          .map(r => r.error!.message);
+        if (nonRevenueErrors.length > 0) {
+          logger.error('[useAdminStats] Supabase hataları:', nonRevenueErrors);
+          setError(nonRevenueErrors[0]);
+        }
+
+        let totalRevenue = 0;
+        if (revenueError) {
+          logger.warn('[useAdminStats] get_total_revenue RPC hatası, fallback kullanılıyor:', revenueError.message);
+          const { data: fallback } = await supabase
+            .from('reservations')
+            .select('total_price')
+            .neq('status', 'İptal Edildi');
+          totalRevenue = fallback?.reduce((sum, r) => sum + (Number(r.total_price) || 0), 0) ?? 0;
+        } else {
+          totalRevenue = Number(revenueResult) || 0;
+        }
 
         setStats({
           totalFlights: totalFlights || 0,

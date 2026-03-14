@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
+import { getTodayTR } from '../../utils/date';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../../components/feature/Header';
 import Footer from '../../components/feature/Footer';
 import BookingStepper from '../../components/feature/BookingStepper';
 import { useSavedPassengers } from '../../hooks/useReservations';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface Passenger {
   id: string;
@@ -24,11 +26,18 @@ const FlightBookingPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { savedPassengers = [] } = useSavedPassengers();
+  const { user, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate('/giris?redirect=/ucus-rezervasyon' + window.location.search);
+    }
+  }, [user, authLoading, navigate]);
 
   const flightId = searchParams.get('flightId');
   const from = searchParams.get('from') || 'İstanbul';
   const to = searchParams.get('to') || 'Dubai';
-  const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
+  const date = searchParams.get('date') || getTodayTR();
   const price = searchParams.get('price') || '1,250';
   const flightNumber = searchParams.get('flightNumber') || '';
   const flightTime = searchParams.get('departureTime') || '';
@@ -179,6 +188,16 @@ const FlightBookingPage = () => {
       default: return '';
     }
   }, []);
+
+  if (authLoading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <i className="ri-loader-4-line text-5xl text-primary animate-spin"></i>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">

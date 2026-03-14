@@ -73,15 +73,16 @@ export function useUserReservations() {
   const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(true);
 
+  const userId = user?.id;
   const refresh = useCallback(async () => {
-    if (!user) { setReservations([]); setLoading(false); return; }
+    if (!userId) { setReservations([]); setLoading(false); return; }
     setLoading(true);
     setError(null);
 
     const { data, error: queryError } = await supabase
       .from('reservations')
       .select('id, pnr, user_id, flight_id, flight_number, route, flight_date, flight_time, status, total_price, flight_class, contact_email, contact_phone, extra_services, payment_method, payment_card_last4, created_at, passengers(first_name, last_name, tc_no, birth_date, gender, seat_number, passenger_type)')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (!mountedRef.current) return;
@@ -91,7 +92,7 @@ export function useUserReservations() {
     }
     if (data) setReservations(data as Reservation[]);
     setLoading(false);
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -161,33 +162,77 @@ export function useCreateReservation() {
     paymentMethod: string;
     paymentCardLast4: string;
     passengers: Passenger[];
+    bookingToken?: string;
   }) => {
+    // P4: DB'den güncel fiyat ve kapasite çek — client fiyatını kullanma
+    const { data: flightData, error: flightError } = await supabase
+      .from('flights')
+      .select('price, capacity, booked_seats')
+      .eq('id', data.flightId)
+      .single();
+
+    if (flightError || !flightData) {
+      return { pnr: null, error: 'Uçuş bilgileri alınamadı. Lütfen tekrar deneyin.' };
+    }
+
+    // P4: Kapasite kontrolü — erken reddet
+    if (flightData.booked_seats + data.passengers.length > flightData.capacity) {
+      return { pnr: null, error: 'Bu uçuşta yeterli koltuk kalmadı. Lütfen başka bir uçuş seçin.' };
+    }
+
+    // P4: DB fiyatından base uçuş ücretini hesapla
+    const dbPrice = Number(flightData.price);
+    const adultCount = data.passengers.filter(p => p.passenger_type !== 'Çocuk' && p.passenger_type !== 'Bebek').length;
+    const childCount = data.passengers.filter(p => p.passenger_type === 'Çocuk').length;
+    const infantCount = data.passengers.filter(p => p.passenger_type === 'Bebek').length;
+    const dbFlightTotal = dbPrice * adultCount + dbPrice * 0.75 * childCount + dbPrice * 0.1 * infantCount;
+
+    // P4: Ek hizmet tutarlarını client'tan al (koltuk, bagaj, yemek vb. — sabit tanımlı)
+    // Güvenli toplam: DB bazlı uçuş ücreti + client'ın ek hizmet farkı (negatif olamaz)
+    const extraAmount = Math.max(0, data.totalPrice - dbFlightTotal);
+    const verifiedTotal = Math.round(dbFlightTotal + extraAmount);
+
     const pnr = generatePNR();
+
+    const insertPayload: Record<string, unknown> = {
+      pnr,
+      user_id: user?.id || null,
+      flight_id: data.flightId,
+      flight_number: data.flightNumber,
+      route: data.route,
+      flight_date: data.flightDate,
+      flight_time: data.flightTime,
+      status: 'Onaylandı',
+      total_price: verifiedTotal,
+      flight_class: data.flightClass,
+      contact_email: data.contactEmail,
+      contact_phone: data.contactPhone,
+      extra_services: data.extraServices,
+      payment_method: data.paymentMethod,
+      payment_card_last4: data.paymentCardLast4,
+    };
+
+    // P5: booking_token varsa ekle — çift rezervasyon koruması (DB'de unique constraint gerekir)
+    if (data.bookingToken) {
+      insertPayload.booking_token = data.bookingToken;
+    }
 
     const { data: reservation, error: resError } = await supabase
       .from('reservations')
-      .insert({
-        pnr,
-        user_id: user?.id || null,
-        flight_id: data.flightId,
-        flight_number: data.flightNumber,
-        route: data.route,
-        flight_date: data.flightDate,
-        flight_time: data.flightTime,
-        status: 'Onaylandı',
-        total_price: data.totalPrice,
-        flight_class: data.flightClass,
-        contact_email: data.contactEmail,
-        contact_phone: data.contactPhone,
-        extra_services: data.extraServices,
-        payment_method: data.paymentMethod,
-        payment_card_last4: data.paymentCardLast4,
-      })
+      .insert(insertPayload)
       .select()
       .single();
 
-    if (resError || !reservation) {
-      return { pnr: null, error: resError?.message ?? 'Rezervasyon oluşturulamadı' };
+    if (resError) {
+      // P5: Duplicate booking_token — çift tıklama koruması
+      if (resError.code === '23505') {
+        return { pnr: null, error: 'Bu rezervasyon zaten oluşturuldu.' };
+      }
+      return { pnr: null, error: resError.message ?? 'Rezervasyon oluşturulamadı' };
+    }
+
+    if (!reservation) {
+      return { pnr: null, error: 'Rezervasyon oluşturulamadı' };
     }
 
     if (data.passengers.length > 0) {
@@ -207,13 +252,15 @@ export function useCreateReservation() {
         );
 
       if (passError) {
-        return { pnr, error: 'Yolcular kaydedilirken hata: ' + passError.message };
+        // P10: Yolcu insert başarısız — yolcusuz rezervasyonu temizle
+        await supabase.from('reservations').delete().eq('id', reservation.id);
+        return { pnr: null, error: 'Yolcu bilgileri kaydedilemedi. Lütfen tekrar deneyin.' };
       }
     }
 
     if (user) {
       for (const p of data.passengers) {
-        await supabase
+        const { error: savedPassError } = await supabase
           .from('saved_passengers')
           .upsert({
             user_id: user.id,
@@ -224,6 +271,10 @@ export function useCreateReservation() {
             phone: data.contactPhone,
             email: data.contactEmail,
           }, { onConflict: 'user_id,tc_no' });
+        // P10: saved_passengers hatası kritik değil — logla, akışı bozma
+        if (savedPassError) {
+          logger.error('[useCreateReservation] saved_passengers upsert hatası:', savedPassError.message);
+        }
       }
     }
 
@@ -247,12 +298,13 @@ export function useCreateReservation() {
 
 export function useSavedPassengers() {
   const { user } = useAuth();
+  const userId = user?.id;
   const [passengers, setPassengers] = useState<SavedPassenger[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) { setLoading(false); return; }
+    if (!userId) { setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -262,7 +314,7 @@ export function useSavedPassengers() {
         const { data, error: fetchError } = await supabase
           .from('saved_passengers')
           .select('*')
-          .eq('user_id', user.id);
+          .eq('user_id', userId);
         if (cancelled) return;
         if (fetchError) {
           logger.error('[useSavedPassengers] Supabase hatası:', fetchError.message);
@@ -284,7 +336,7 @@ export function useSavedPassengers() {
     })();
 
     return () => { cancelled = true; };
-  }, [user]);
+  }, [userId]);
 
   return { savedPassengers: passengers, loading, error };
 }
